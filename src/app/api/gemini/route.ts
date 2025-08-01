@@ -16,11 +16,11 @@ export async function POST(req: NextRequest) {
   })
 
   const data = await res.json()
-
+ console.log('[Gemini 原始回應]', JSON.stringify(data, null, 2))
   if (data.error) {
     console.error('Gemini Error:', data.error)
     return NextResponse.json({ error: data.error.message }, { status: 500 })
   }
-
+const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
   return NextResponse.json(data)
 }
