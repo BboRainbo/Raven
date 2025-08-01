@@ -8,6 +8,9 @@ const TreeClient = dynamic(() => import('@/components/TreeClient'), { ssr: false
 export default function PromptPage() {
   const [prompt, setPrompt] = useState('')
   const [aiResponse, setAiResponse] = useState('')
+  const [selectedNodeName, setSelectedNodeName] = useState<string | null>(null)
+  const [nodePrompt, setNodePrompt] = useState('')
+
   const containerRef = useRef(null)
 
   const sendPrompt = async () => {
@@ -42,11 +45,13 @@ export default function PromptPage() {
           發送
         </button>
         <div className="mt-4 whitespace-pre-wrap">{aiResponse}</div>
+        
       </div>
 
       {/* Right Panel */}
       <div ref={containerRef} className="w-1/2 p-4 h-full overflow-hidden bg-white">
-        <TreeClient />
+        <TreeClient onSelectNode={(name: string) => setSelectedNodeName(name)} />
+
       </div>
     </div>
   )
