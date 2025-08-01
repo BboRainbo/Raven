@@ -2,6 +2,13 @@
 import { useRef } from 'react'
 import React, { useState } from 'react'
 import Tree from 'react-d3-tree'
+import { useEffect, useCallback, useMemo } from 'react';
+
+interface TreeClientProps {
+  data: TreeNode[];
+  onNodeSelect?: (nodeName: string) => void;  // ✅ 新增這行
+}
+
 
 interface TreeNode {
   id: string
@@ -45,7 +52,7 @@ const initialTreeData: TreeNode = {
   ],
 }
 
-export default function TreeClient() {
+export default function TreeClient({ data, onNodeSelect }: TreeClientProps) {
   const isDraggingTree = useRef(false)
   const [treeData, setTreeData] = useState<TreeNode>(initialTreeData)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -54,7 +61,40 @@ export default function TreeClient() {
     startX: number
     startY: number
   } | null>(null)
-  
+  //1025
+  useEffect(() => {
+  const handler = (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    const { parent, tasks } = detail;
+
+    setTreeData((prevTree) => {
+      const newTree = JSON.parse(JSON.stringify(prevTree)); // 深拷貝
+      const findAndAppend = (nodes: TreeNode[]): boolean => {
+        for (let node of nodes) {
+          if (node.name === parent) {
+            if (!node.children) node.children = [];
+            tasks.forEach((taskName: string) => {
+              node.children!.push({
+                name: taskName,
+                progress: 0,
+              });
+            });
+            return true;
+          }
+          if (node.children && findAndAppend(node.children)) return true;
+        }
+        return false;
+      };
+      findAndAppend([newTree]);
+      return newTree;
+    });
+  };
+
+  window.addEventListener('add-subtasks', handler);
+  return () => window.removeEventListener('add-subtasks', handler);
+}, []);
+
+  //1025
 
   const [draggingId, setDraggingId] = useState<string | null>(null)
 
@@ -195,7 +235,12 @@ if (nodeDatum.displayMode === 'list' && nodeDatum.children?.length > 0) {
 
   return (
     <g
-      onClick={handleClick}
+onClick={() => {
+  if (onNodeSelect) {
+    onNodeSelect(nodeDatum.name); // 假設 node.name 是節點名稱
+  }
+}}
+
       draggable
       onDragStart={(e) => handleDragStart(e, id)}
       onDragOver={(e) => e.preventDefault()}
