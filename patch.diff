@@ -1,0 +1,324 @@
+diff --git a/src/app/prompt/page.tsx b/src/app/prompt/page.tsx
+index abaf007..f86c200 100644
+--- a/src/app/prompt/page.tsx
++++ b/src/app/prompt/page.tsx
+@@ -1,5 +1,6 @@
+ 'use client'
+-
++import AIPanel from '@/components/AIPanel'
++import { addNodeToTree } from '@/utils/TreeUtils/addNodeToTree'
+ import dynamic from 'next/dynamic'
+ import { useRef, useState } from 'react'
+ import AIDiscussionPanel from '@/components/AIDiscussionPanel'
+@@ -56,8 +57,13 @@ export default function PromptPage() {
+     setAiResponse(text)
+   }
+ 
++  function handleAddSubtasksFromAI(tasks: string[]): void {
++    throw new Error('Function not implemented.')
++  }
++
+   return (
+     <div className="flex w-full h-screen">
++<<<<<<< HEAD
+       {/* 左側：輸入與討論 */}
+       <div className="w-1/2 p-4 border-r border-gray-300 overflow-auto">
+         <h2 className="text-lg font-bold mb-2">GPT Prompt 輸入</h2>
+@@ -87,6 +93,26 @@ export default function PromptPage() {
+       </div>
+ 
+       {/* 右側：樹狀圖 */}
++=======
++      
++{/* Left Panel */}
++
++{/* AIPanel */}
++
++      {selectedNodeName && (
++<AIPanel 
++  selectedNodeName={selectedNodeName || '未選取'} 
++  onAddSubtasks={handleAddSubtasksFromAI}
++/>
++
++)}
++
++{/* AIPanel */}
++
++
++
++      {/* Right Panel */}
++>>>>>>> 251b5c2 (拆分功能與 component v01)
+       <div ref={containerRef} className="w-1/2 p-4 h-full overflow-hidden">
+         <TreeClient
+           data={treeData}
+diff --git a/src/components/TreeClient.tsx b/src/components/TreeClient.tsx
+index 3ce12ba..e5ac5e7 100644
+--- a/src/components/TreeClient.tsx
++++ b/src/components/TreeClient.tsx
+@@ -1,24 +1,23 @@
++//專注於樹的邏輯控制
+ 'use client'
++
++import { addNodeToTree } from '../utils/TreeUtils/addNodeToTree'
++import { deleteNodeFromTree } from '../utils/TreeUtils/deleteNodeFromTree'
++import { renameNodeInTree } from '../utils/TreeUtils/renameNodeInTree'
++import type { TreeNode } from '@/type/Tree'
++
++import { generateUniqueId } from '@/utils/generateUniqueId'
+ import { useRef } from 'react'
+ import React, { useState } from 'react'
+ import Tree from 'react-d3-tree'
+ import { useEffect, useCallback, useMemo } from 'react';
++import RenderNode from './RenderNode';
+ 
+ interface TreeClientProps {
+   data: TreeNode[];
+   onNodeSelect?: (nodeName: string) => void;  // ✅ 新增這行
+ }
+ 
+-
+-interface TreeNode {
+-  id: string
+-  displayMode?: 'tree' | 'list'
+-  name: string
+-  progress? : number
+-  prompt?: string
+-  textOffset?: { x: number; y: number }
+-  children?: TreeNode[]
+-}
+ const getVisibleTreeData = (node: TreeNode, isAncestorListMode = false): TreeNode => {
+   const inListMode = isAncestorListMode || node.displayMode === 'list'
+ 
+@@ -61,6 +60,15 @@ export default function TreeClient({ data, onNodeSelect }: TreeClientProps) {
+     startX: number
+     startY: number
+   } | null>(null)
++
++
++  // ✅ 給 AI 使用的新增子任務函數（使用 addNodeToTree）
++  const handleAddSubtasksFromAI = (tasks: string[]) => {
++    if (!selectedId) return
++    const updatedTree = addNodeToTree(treeData, selectedId, tasks)
++    setTreeData(updatedTree)
++    }
++
+   //1025
+   useEffect(() => {
+   const handler = (e: Event) => {
+@@ -189,112 +197,21 @@ export default function TreeClient({ data, onNodeSelect }: TreeClientProps) {
+     }
+   }
+ 
+-const renderNode = ({ nodeDatum }: any) => {
+-  // 條列模式：將 children 渲染為進度條清單
+-if (nodeDatum.displayMode === 'list' && nodeDatum.children?.length > 0) {
+-  return (
+-    <g>
+-      <foreignObject x={-100} y={10} width={200} height={nodeDatum.children.length * 50}>
+-        <div xmlns="http://www.w3.org/1999/xhtml" className="bg-white border p-2 rounded shadow text-xs">
+-          <div className="font-bold mb-1">{nodeDatum.name}</div>
+-          {nodeDatum.children.map((child: TreeNode) => (
+-            <div key={child.id} className="mb-2">
+-              <div className="text-[13px]">{child.name}</div>
+-              <div className="w-full bg-gray-200 h-2 rounded">
+-                <div
+-                  className="bg-blue-600 h-2 rounded"
+-                  style={{ width: `${child.progress ?? 0}%` }}
+-                />
+-              </div>
+-              <div className="text-right text-gray-500 text-[11px]">{(child.progress ?? 0)}%</div>
+-            </div>
+-          ))}
+-        </div>
+-      </foreignObject>
+-    </g>
+-  )
+-}
+-
+-  const id = nodeDatum.id ?? nodeDatum.id
+-  const name = nodeDatum.name ?? nodeDatum.name
+-  const offset = nodeDatum.textOffset ?? { x: 15, y: 5 }
+-  const progress = nodeDatum.progress ?? 0 // 新增進度
+-  const isSelected = id === selectedId
+-
+-  const progressBarWidth = 80
+-  const progressBarHeight = 8
+ 
+-  const handleClick = () => {
+-    setSelectedId(id)
+-  }
+-
+-  const onMouseDown = (e: React.MouseEvent<SVGTextElement, MouseEvent>) => {
+-    e.stopPropagation()
+-    setDraggingNode({ id, startX: e.clientX, startY: e.clientY })
+-  }
+-
+-  return (
+-    <g
+-onClick={() => {
+-  if (onNodeSelect) {
+-    onNodeSelect(nodeDatum.name); // 假設 node.name 是節點名稱
+-  }
+-}}
+-
+-      draggable
+-      onDragStart={(e) => handleDragStart(e, id)}
+-      onDragOver={(e) => e.preventDefault()}
+-      onDrop={(e) => handleDrop(e, id)}
+-      style={{ cursor: 'grab' }}
+-    >
+-      {/* 保留原本的圓形節點選中效果 */}
+-      <circle
+-        r={10}
+-        fill={isSelected ? '#dbdb06ff' : '#ffffffff'}
+-        stroke="#000000ff"
+-        strokeWidth={2}
+-      />
+-
+-      {/* 新增進度條背景 */}
+-      <rect
+-        x={-40}
+-        y={-30}
+-        width={progressBarWidth}
+-        height={progressBarHeight}
+-        fill="#ccc"
+-        rx={4}
+-        ry={4}
+-      />
+-      {/* 新增進度條進度 */}
+-      <rect
+-        x={-40}
+-        y={-30}
+-        width={(progress / 100) * progressBarWidth}
+-        height={progressBarHeight}
+-        fill="#4f46e5"
+-        rx={4}
+-        ry={4}
+-      />
+-
+-      {/* 節點名稱 + onMouseDown 拖曳 offset 功能 */}
+-      <text
+-        fill="#000"
+-        x={offset.x}
+-        y={offset.y}
+-        fontFamily="Arial, sans-serif"
+-        fontSize={16}
+-        fontWeight="normal"
+-        pointerEvents="none"
+-        style={{ textRendering: 'geometricPrecision' }}
+-        onMouseDown={onMouseDown}
+-      >
+-      {name}
+-      {`${progress}%`}
+-        
+-      </text>
+-    </g>
+-  )
+-}
++//封裝節點渲染
++const renderNode = ({ nodeDatum }: any) => (
++  <RenderNode
++    nodeDatum={nodeDatum}
++    selectedId={selectedId}
++    onSelect={(id, name) => {
++      setSelectedId(id)
++      if (onNodeSelect) onNodeSelect(name)
++    }}
++    onDragStart={handleDragStart}
++    onDrop={handleDrop}
++    onMouseDown={(e, id, x, y) => setDraggingNode({ id, startX: x, startY: y })}
++  />
++)
+ 
+ 
+   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+@@ -316,74 +233,19 @@ onClick={() => {
+     setDraggingNode(null)
+   }
+ 
+-  const updateNode = (tree: TreeNode): TreeNode => {
+-    if (tree.id === selectedId) {
+-      const name = prompt('重新命名節點', tree.name)
+-      if (name) return { ...tree, name }
+-      return tree
+-    }
+-    return {
+-      ...tree,
+-      children: tree.children?.map(updateNode),
+-    }
+-  }
+ 
+-  const deleteNode = (tree: TreeNode): TreeNode | null => {
+-    if (tree.children) {
+-      const filtered = tree.children
+-        .map(deleteNode)
+-        .filter((c) => c !== null) as TreeNode[]
+-      return { ...tree, children: filtered }
+-    }
+-    return tree.id === selectedId ? null : tree
+-  }
+ 
+-  const addNode = (tree: TreeNode): TreeNode => {
+-    if (tree.id === selectedId) {
+-      const newName = prompt('輸入新增節點名稱')
+-      if (newName) {
+-        const newChild: TreeNode = {
+-          id: `${tree.id}-${Date.now()}`,
+-          name: newName,
+-          textOffset: { x: 15, y: 5 },
+-        }
+-        return {
+-          ...tree,
+-          children: [...(tree.children || []), newChild],
+-        }
+-      }
+-    }
+-    return {
+-      ...tree,
+-      children: tree.children?.map(addNode),
+-    }
+-  }
+-
+-  const handleAction = async (action: 'add' | 'rename' | 'delete' | 'ai'|'toggleView') => {
++  const handleAction = async (action: 'add' | 'rename' | 'delete'|'toggleView') => {
+     if (!selectedId) return
+ 
+     if (action === 'rename') {
+-      setTreeData(updateNode(treeData))
++      setTreeData(renameNodeInTree(treeData, selectedId))
+     } else if (action === 'delete') {
+-      const result = deleteNode(treeData)
++      const result = deleteNodeFromTree(treeData, selectedId)
+       if (result) setTreeData(result)
+     } else if (action === 'add') {
+-      setTreeData(addNode(treeData))
+-    } else if (action === 'ai') {
+-      const userInput = prompt('與 AI 討論任務內容？')
+-      if (!userInput) return
+-
+-      const res = await fetch('/api/gemini', {
+-        method: 'POST',
+-        headers: { 'Content-Type': 'application/json' },
+-        body: JSON.stringify({ prompt: userInput }),
+-      })
+-
+-      const data = await res.json()
+-      const reply =
+-        data.candidates?.[0]?.content?.parts?.[0]?.text ?? 'AI 無回應'
+-      alert(`AI 回覆：\n\n${reply}`)
+-    }
++      setTreeData(addNodeToTree(treeData, selectedId))
++    } 
+      else if (action === 'toggleView') {
+   const toggle = (tree: TreeNode): TreeNode => {
+     if (tree.id === selectedId) {
+@@ -418,9 +280,6 @@ onClick={() => {
+         <button onClick={() => handleAction('delete')} className="bg-red-500 text-white px-2 py-1">
+           刪除
+         </button>
+-        <button onClick={() => handleAction('ai')} className="bg-blue-600 text-white px-2 py-1">
+-          AI 討論
+-        </button>
+         <button onClick={() => handleAction('toggleView')} className="bg-gray-600 text-white px-2 py-1">
+         切換顯示模式
+         </button>
