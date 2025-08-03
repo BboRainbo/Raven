@@ -14,9 +14,9 @@ import { useEffect, useCallback, useMemo } from 'react';
 import RenderNode from './RenderNode';
 
 interface TreeClientProps {
-  data: TreeNode[];
-  onNodeSelect?: (nodeName: string) => void;  // ✅ 新增這行
+  onNodeSelect?: (nodeName: string) => void;
 }
+
 
 const getVisibleTreeData = (node: TreeNode, isAncestorListMode = false): TreeNode => {
   const inListMode = isAncestorListMode || node.displayMode === 'list'
@@ -51,7 +51,8 @@ const initialTreeData: TreeNode = {
   ],
 }
 
-export default function TreeClient({ data, onNodeSelect }: TreeClientProps) {
+export default function TreeClient({ onNodeSelect }: TreeClientProps)
+ {
   const isDraggingTree = useRef(false)
   const [treeData, setTreeData] = useState<TreeNode>(initialTreeData)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -69,38 +70,19 @@ export default function TreeClient({ data, onNodeSelect }: TreeClientProps) {
     setTreeData(updatedTree)
     }
 
-  //1025
-  useEffect(() => {
+  //統一管理 add node邏輯
+useEffect(() => {
   const handler = (e: Event) => {
     const detail = (e as CustomEvent).detail;
     const { parent, tasks } = detail;
 
-    setTreeData((prevTree) => {
-      const newTree = JSON.parse(JSON.stringify(prevTree)); // 深拷貝
-      const findAndAppend = (nodes: TreeNode[]): boolean => {
-        for (let node of nodes) {
-          if (node.name === parent) {
-            if (!node.children) node.children = [];
-            tasks.forEach((taskName: string) => {
-              node.children!.push({
-                name: taskName,
-                progress: 0,
-              });
-            });
-            return true;
-          }
-          if (node.children && findAndAppend(node.children)) return true;
-        }
-        return false;
-      };
-      findAndAppend([newTree]);
-      return newTree;
-    });
+    setTreeData(prevTree => addNodeToTree(prevTree, parent, tasks));
   };
 
   window.addEventListener('add-subtasks', handler);
   return () => window.removeEventListener('add-subtasks', handler);
 }, []);
+
 
   //1025
 
