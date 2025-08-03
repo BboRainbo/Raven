@@ -2,9 +2,11 @@
 import { useState } from 'react'
 
 interface AIPanelProps {
-  selectedNodeName: string
-  onAddSubtasks: (tasks: string[]) => void
+  selectedNodeId: string;
+  selectedNodeName: string;
+  onAddSubtasks: (tasks: string[]) => void;  // ✅ 接收這個 prop
 }
+
 
 export default function AIPanel({ selectedNodeName, onAddSubtasks }: AIPanelProps) {
   const [discussionResponse, setDiscussionResponse] = useState('')

@@ -1,11 +1,12 @@
 //專注於樹的邏輯控制
 'use client'
-
+import AIPanel from './TreeClient/AIPanel'
+import { findNodeById } from '@/utils/TreeUtils/findNodeById'
+import { removeNodeById } from '@/utils/TreeUtils/removeNodeById'
 import { addNodeToTree } from '../utils/TreeUtils/addNodeToTree'
 import { deleteNodeFromTree } from '../utils/TreeUtils/deleteNodeFromTree'
 import { renameNodeInTree } from '../utils/TreeUtils/renameNodeInTree'
 import type { TreeNode } from '@/type/Tree'
-
 import { generateUniqueId } from '@/utils/generateUniqueId'
 import { useRef } from 'react'
 import React, { useState } from 'react'
@@ -13,9 +14,7 @@ import Tree from 'react-d3-tree'
 import { useEffect, useCallback, useMemo } from 'react';
 import RenderNode from './RenderNode';
 
-interface TreeClientProps {
-  onNodeSelect?: (nodeName: string) => void;
-}
+
 
 
 const getVisibleTreeData = (node: TreeNode, isAncestorListMode = false): TreeNode => {
@@ -53,8 +52,11 @@ const initialTreeData: TreeNode = {
 
 export default function TreeClient({ onNodeSelect }: TreeClientProps)
  {
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedNodeName, setSelectedNodeName] = useState<string>('');
+  const [treeData, setTreeData] = useState<TreeNode>(initialTreeData);
+  const [clipboardNode, setClipboardNode] = useState<TreeNode | null>(null)
   const isDraggingTree = useRef(false)
-  const [treeData, setTreeData] = useState<TreeNode>(initialTreeData)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [hoverTargetId, setHoverTargetId] = useState<string | null>(null)
@@ -64,36 +66,30 @@ export default function TreeClient({ onNodeSelect }: TreeClientProps)
     startY: number
   } | null>(null)
 
+const handleCutNode = () => {
+  if (!selectedId || selectedId === 'root') return
+  const found = findNodeById(treeData, selectedId)
+  if (!found) return
+  const updatedTree = removeNodeById(treeData, selectedId)
+  setTreeData(updatedTree)
+  setClipboardNode(found)
+}
+
+const handlePasteNode = () => {
+  if (!selectedId || !clipboardNode) return
+  const updatedTree = addNodeToTree(treeData, selectedId, [clipboardNode.name])
+  setTreeData(updatedTree)
+  setClipboardNode(null)
+}
+
+const handleNodeClick = (nodeData: any) => {
+  const id = nodeData.data.id;
+  const name = nodeData.data.name;
+  setSelectedNodeId(id);
+  setSelectedNodeName(name);
+};
 
 
-  // ✅ 給 AI 使用的新增子任務函數（使用 addNodeToTree）
-  const handleAddSubtasksFromAI = (tasks: string[]) => {
-    if (!selectedId) return
-    const updatedTree = addNodeToTree(treeData, selectedId, tasks)
-    setTreeData(updatedTree)
-    }
-
-// 監聽 'add-subtasks' 廣播事件，接收從 AIPanel.tsx 傳來的子任務，並更新對應 parent 節點
-useEffect(() => {
-  const handler = (e: Event) => {
-    const detail = (e as CustomEvent).detail;
-    const { parent, tasks } = detail;
-
-    setTreeData(prevTree => addNodeToTree(prevTree, parent, tasks));
-  };
-//用廣播機制與 AIPanel.tsx溝通
-  window.addEventListener('add-subtasks', handler);
-  return () => window.removeEventListener('add-subtasks', handler);
-}, []);
-
-
-  //1025
-//dragging功能未成功
-
-
-  const handleNodeClick = (nodeData: any) => {
-    setSelectedId(nodeData.data.id)
-  }
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.stopPropagation()
@@ -200,10 +196,12 @@ const renderNode = ({ nodeDatum }: any) => (
   onMouseDownStart={handleMouseDownStart}
     nodeDatum={nodeDatum}
     selectedId={selectedId}
-    onSelect={(id, name) => {
-      setSelectedId(id)
-      if (onNodeSelect) onNodeSelect(name)
-    }}
+onSelect={(id, name) => {
+  setSelectedId(id)
+  setSelectedNodeId(id)         
+  setSelectedNodeName(name)     
+  if (onNodeSelect) onNodeSelect(name)
+}}
     onDragStart={handleDragStart}
     onDrop={handleDrop}
     onMouseDown={(e, id, x, y) => setDraggingNode({ id, startX: x, startY: y })}
@@ -271,30 +269,21 @@ const handleMouseUp = () => {
 
   }
 
-  return (
-    <div
-      className="h-full w-full"
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-    >
+return (
+  <div className="flex h-screen">
+    {/* ✅ 左邊 Tree 區域 */}
+    <div className="w-1/2 h-full p-4" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
+      {/* 工具列 */}
       <div className="flex gap-2 mb-2">
-        <button onClick={() => handleAction('add')} className="bg-green-500 text-white px-2 py-1">
-          新增
-        </button>
-        <button onClick={() => handleAction('rename')} className="bg-yellow-500 text-white px-2 py-1">
-          改名
-        </button>
-        <button onClick={() => handleAction('delete')} className="bg-red-500 text-white px-2 py-1">
-          刪除
-        </button>
-        <button onClick={() => handleAction('toggleView')} className="bg-gray-600 text-white px-2 py-1">
-        切換顯示模式
-        </button>
-<div className="text-xs text-gray-600">Hover Target: {hoverTargetId}</div>
-
-
+        <button onClick={() => handleAction('add')} className="bg-green-500 text-white px-2 py-1">新增</button>
+        <button onClick={() => handleAction('rename')} className="bg-yellow-500 text-white px-2 py-1">改名</button>
+        <button onClick={() => handleAction('delete')} className="bg-red-500 text-white px-2 py-1">刪除</button>
+        <button onClick={() => handleAction('toggleView')} className="bg-gray-600 text-white px-2 py-1">切換顯示模式</button>
+        <button onClick={handleCutNode} className="bg-purple-500 text-white px-2 py-1">剪下</button>
+        <button onClick={handlePasteNode} className="bg-blue-500 text-white px-2 py-1">貼上</button>
       </div>
 
+      {/* Tree */}
       <div className="border h-[90%] bg-white">
         <Tree
           data={getVisibleTreeData(treeData)}
@@ -304,7 +293,7 @@ const handleMouseUp = () => {
           onNodeClick={handleNodeClick}
           renderCustomNodeElement={renderNode}
           enableLegacyTransitions={false}
-          panOnDrag={false}  // ✅ 加上這一行
+          panOnDrag={false}
           styles={{
             links: {
               stroke: '#000000ff',
@@ -314,6 +303,23 @@ const handleMouseUp = () => {
         />
       </div>
     </div>
-    
-  )
+
+    {/* ✅ 右邊 AI Panel */}
+    <div className="w-1/2 h-full p-4 bg-gray-900 text-white overflow-auto">
+      {selectedNodeId && (
+      <AIPanel
+  selectedNodeId={selectedId}
+  selectedNodeName={selectedNodeName}
+  onAddSubtasks={(tasks) => {
+    if (!selectedId) return;
+    const newTree = addNodeToTree(treeData, selectedId, tasks);
+    setTreeData(newTree);
+  }}
+/>
+
+
+      )}
+    </div>
+  </div>
+)
 }
