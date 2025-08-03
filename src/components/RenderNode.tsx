@@ -1,4 +1,3 @@
-// components/RenderNode.tsx
 'use client'
 import React from 'react'
 import type { TreeNode } from './types'
@@ -7,24 +6,28 @@ interface RenderNodeProps {
   nodeDatum: TreeNode
   selectedId: string | null
   onSelect: (id: string, name: string) => void
-  onDragStart: (e: React.DragEvent, id: string) => void
-  onDrop: (e: React.DragEvent, id: string) => void
   onMouseDown: (e: React.MouseEvent<SVGTextElement>, id: string, x: number, y: number) => void
+  onMouseEnter: (id: string) => void
+
+  // ✅ 如果你還有傳入拖曳起點，也要加這一行
+  onMouseDownStart: (id: string, x: number, y: number) => void;
 }
 
 const RenderNode: React.FC<RenderNodeProps> = ({
   nodeDatum,
   selectedId,
   onSelect,
-  onDragStart,
-  onDrop,
   onMouseDown,
+  onMouseEnter,          // ✅ 加上這行
+  onMouseDownStart       // ✅ 加上這行
 }) => {
+
   const isSelected = nodeDatum.id === selectedId
   const offset = nodeDatum.textOffset ?? { x: 15, y: 5 }
   const progress = nodeDatum.progress ?? 0
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation() // ✅ 避免觸發畫布事件
     onSelect(nodeDatum.id, nodeDatum.name)
   }
 
@@ -54,19 +57,29 @@ const RenderNode: React.FC<RenderNodeProps> = ({
   }
 
   return (
-    <g
-      onClick={handleClick}
-      draggable
-      onDragStart={(e) => onDragStart(e, nodeDatum.id)}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => onDrop(e, nodeDatum.id)}
-      style={{ cursor: 'grab' }}
-    >
+<g
+  onClick={handleClick}
+  onMouseEnter={() => onMouseEnter(nodeDatum.id)}
+  onMouseDown={(e) => {
+  e.stopPropagation();
+  onMouseDownStart(nodeDatum.id, e.clientX, e.clientY);  // ✅ 傳入三個參數
+  
+}}
+style={{ cursor: 'grab', pointerEvents: 'visiblePainted' }}
+>
+
+
       <circle
         r={10}
         fill={isSelected ? '#dbdb06ff' : '#ffffffff'}
         stroke="#000000ff"
         strokeWidth={2}
+        onMouseDown={(e) => {
+        e.stopPropagation();                      // ✅ 避免畫布拖曳事件觸發
+        onMouseDownStart(nodeDatum.id, e.clientX, e.clientY);    
+        }}
+        onMouseEnter={() => onMouseEnter(nodeDatum.id)}
+        pointerEvents="all"
       />
       <rect
         x={-40}
@@ -92,8 +105,12 @@ const RenderNode: React.FC<RenderNodeProps> = ({
         y={offset.y}
         fontFamily="Arial, sans-serif"
         fontSize={16}
-        onMouseDown={(e) => onMouseDown(e, nodeDatum.id, e.clientX, e.clientY)}
-        pointerEvents="none"
+        onMouseEnter={() => onMouseEnter(nodeDatum.id)}
+        onMouseDown={(e) => {
+          e.stopPropagation() // ✅ 防止畫布 mouseDown
+          onMouseDown(e, nodeDatum.id, e.clientX, e.clientY)
+        }}
+        pointerEvents="all" // ✅ 改成 all，讓它真的能接到事件
       >
         {nodeDatum.name} {progress}%
       </text>

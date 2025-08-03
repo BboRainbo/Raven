@@ -56,11 +56,14 @@ export default function TreeClient({ onNodeSelect }: TreeClientProps)
   const isDraggingTree = useRef(false)
   const [treeData, setTreeData] = useState<TreeNode>(initialTreeData)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [hoverTargetId, setHoverTargetId] = useState<string | null>(null)
   const [draggingNode, setDraggingNode] = useState<{
     id: string
     startX: number
     startY: number
   } | null>(null)
+
 
 
   // ✅ 給 AI 使用的新增子任務函數（使用 addNodeToTree）
@@ -70,7 +73,7 @@ export default function TreeClient({ onNodeSelect }: TreeClientProps)
     setTreeData(updatedTree)
     }
 
-  //統一管理 add node邏輯
+// 監聽 'add-subtasks' 廣播事件，接收從 AIPanel.tsx 傳來的子任務，並更新對應 parent 節點
 useEffect(() => {
   const handler = (e: Event) => {
     const detail = (e as CustomEvent).detail;
@@ -78,15 +81,15 @@ useEffect(() => {
 
     setTreeData(prevTree => addNodeToTree(prevTree, parent, tasks));
   };
-
+//用廣播機制與 AIPanel.tsx溝通
   window.addEventListener('add-subtasks', handler);
   return () => window.removeEventListener('add-subtasks', handler);
 }, []);
 
 
   //1025
+//dragging功能未成功
 
-  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   const handleNodeClick = (nodeData: any) => {
     setSelectedId(nodeData.data.id)
@@ -112,6 +115,7 @@ useEffect(() => {
     setTreeData(updatedTree)
     setDraggingId(null)
   }
+//dragging功能未成功
 
   const isDescendant = (node: TreeNode, targetId: string): boolean => {
     if (node.id === targetId) return true
@@ -179,10 +183,21 @@ useEffect(() => {
     }
   }
 
+const handleMouseEnter = (id: string) => {
+  // 你可以在這裡加上 debug 訊息或 hover 效果處理
+  setHoverTargetId(id)  // ✅ 關鍵：更新目前滑鼠所在節點
+  console.log(`Hovered on node: ${id}`)
+}
+
+const handleMouseDownStart = (id: string, x: number, y: number) => {
+  setDraggingNode({ id, startX: x, startY: y });
+};
 
 //封裝節點渲染
 const renderNode = ({ nodeDatum }: any) => (
   <RenderNode
+  onMouseEnter={handleMouseEnter}
+  onMouseDownStart={handleMouseDownStart}
     nodeDatum={nodeDatum}
     selectedId={selectedId}
     onSelect={(id, name) => {
@@ -211,9 +226,19 @@ const renderNode = ({ nodeDatum }: any) => (
     setTreeData(updatedTree)
   }
 
-  const handleMouseUp = () => {
-    setDraggingNode(null)
+const handleMouseUp = () => {
+  if (draggingId && hoverTargetId && draggingId !== hoverTargetId) {
+    const [newTree, draggedNode] = removeNodeAndReturn(treeData, draggingId)
+    if (!draggedNode) return
+
+    const updatedTree = insertNodeAsChild(newTree, hoverTargetId, draggedNode)
+    setTreeData(updatedTree)
   }
+  setDraggingId(null)
+  setHoverTargetId(null)
+  setDraggingNode(null)
+}
+
 
 
 
@@ -265,6 +290,7 @@ const renderNode = ({ nodeDatum }: any) => (
         <button onClick={() => handleAction('toggleView')} className="bg-gray-600 text-white px-2 py-1">
         切換顯示模式
         </button>
+<div className="text-xs text-gray-600">Hover Target: {hoverTargetId}</div>
 
 
       </div>
@@ -278,6 +304,7 @@ const renderNode = ({ nodeDatum }: any) => (
           onNodeClick={handleNodeClick}
           renderCustomNodeElement={renderNode}
           enableLegacyTransitions={false}
+          panOnDrag={false}  // ✅ 加上這一行
           styles={{
             links: {
               stroke: '#000000ff',
@@ -287,5 +314,6 @@ const renderNode = ({ nodeDatum }: any) => (
         />
       </div>
     </div>
+    
   )
 }
