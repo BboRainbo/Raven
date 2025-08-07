@@ -1,12 +1,12 @@
 'use client'
 import dynamic from 'next/dynamic'
 
-const TreeClient = dynamic(() => import('@/components/TreeClient'), { ssr: false })
+const TaskGenPage = dynamic(() => import('@/components/TaskGenPage'), { ssr: false })
 
 export default function PromptPage() {
   return (
     <div className="h-screen">
-      <TreeClient />
+      <TaskGenPage />
     </div>
   )
 }

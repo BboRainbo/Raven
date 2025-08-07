@@ -1,6 +1,6 @@
 'use client'
 import React from 'react'
-import type { TreeNode } from './types'
+import type { TreeNode } from '@/type/Tree'
 
 interface RenderNodeProps {
   nodeDatum: TreeNode

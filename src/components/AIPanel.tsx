@@ -2,9 +2,8 @@
 import { useState } from 'react'
 
 interface AIPanelProps {
-  selectedNodeId: string;
   selectedNodeName: string;
-  onAddSubtasks: (tasks: string[]) => void;  // ✅ 接收這個 prop
+  onAddSubtasks: (tasks: string[]) => void;  // ✅ 這個 call back props 會回傳AI產生的選項回去給控制台
 }
 
 
