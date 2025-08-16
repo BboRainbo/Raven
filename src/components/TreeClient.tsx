@@ -1,233 +1,163 @@
-'use client'
-import type { TreeNode } from '@/type/Tree'
-import RenderTreePanel from './RenderTreePanel'
-import { findNodeById } from '@/utils/TreeUtils/findNodeById'
-import { removeNodeById } from '@/utils/TreeUtils/removeNodeById'
-import { addNodeToTree } from '@/utils/TreeUtils/addNodeToTree'
-import { deleteNodeFromTree } from '@/utils/TreeUtils/deleteNodeFromTree'
-import { renameNodeInTree } from '@/utils/TreeUtils/renameNodeInTree'
-import React, { useState, useImperativeHandle, forwardRef,useRef  } from 'react'
+'use client';
 
+import type { TreeNode } from '@/type/Tree';
+import { findNodeById, removeNodeById, addNodeToTree, deleteNodeFromTree, renameNodeInTree } from '@/utils/TreeUtils';
+import { useState, useImperativeHandle, forwardRef } from 'react';
 
-//定義 TreeClient 暴露給外部的 Interface
-export interface TreeClientHandle {
-  addSubtasksFromAI: (tasks: string[]) => void;
-  getTreeData: () => TreeNode;
-  handleAction: (action: 'add' | 'rename' | 'delete' | 'toggleView') => void;
-  handleCutNode: () => void;
-  handlePasteNode: () => void;
-}
+//TODO:為了支援 utils 多載的定義 放在這裡好嗎?
+type ChildInput = string | TreeNode;
 
-
-const initialTreeData: TreeNode = {
-  id: 'root',
-  name: '轉職計畫',
-  progress : 30,
-  textOffset: { x: 15, y: 5 },
-  children: [
-    {
-      id: 'sub1',
-      name: '專案',
-      progress : 50,
-      textOffset: { x: 15, y: 5 },
-      children: [{ id: 'task1', name: 'Task 1', textOffset: { x: 15, y: 5 } }],
-    },
-    {
-      id: 'LeetCode',
-      name: 'LeetCode',
-      progress : 50,
-      textOffset: { x: 15, y: 5 },
-    },
-  ],
-}
-
-interface TreeClientProps { //子component 為 RenderTreePanel，只回報SVG互動點擊事件
-  onNodeSelect: (id: string, name: string) => void;
-}
+// ===== Public interface (給父層呼叫的命令式 API，不修改可見資料流) =====
 
 export interface TreeClientHandle {
-  addSubtasksFromAI: (tasks: string[]) => void;
-  getTreeData: () => TreeNode;
+  // ✅ 多載：支援單個或多個子節點
+  appendChildren(parentId: string, child: ChildInput): void;
+  appendChildren(parentId: string, children: ChildInput[]): void;
+  rename: (nodeId: string, nextName?: string) => void;
+  remove: (nodeId: string) => void;
+  cut: (nodeId: string) => void;
+  paste: (targetParentId: string) => void;
+  setNodeProgress: (nodeId: string, value: number) => void;
+  setNodePriority: (nodeId: string, value: number) => void;
+  getSubtree: (nodeId: string) => TreeNode | null;
+  getTree: () => TreeNode;
+}
+
+
+// ===== Controlled props：父層是單一真相 =====
+interface TreeClientProps {
+  value : TreeNode;                          // 單一真相（由父層傳入）
+  onChange: (next:TreeNode) => void;         // 唯一更新通道，Void在此是代表呼叫 callback 後不用回復任何東西給子層
 }
 
 const TreeClient = forwardRef<TreeClientHandle, TreeClientProps>(
-  ({ onNodeSelect }, ref) => {
-    const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [treeData, setTreeData] = useState<TreeNode>(initialTreeData);
-  const [clipboardNode, setClipboardNode] = useState<TreeNode | null>(null)
- 
-//定義Interface暴露的操作  
-useImperativeHandle(ref, () => ({
-  addSubtasksFromAI: (tasks: string[]) => {
-    if (!selectedId) return;
-    const updatedTree = addNodeToTree(treeData, selectedId, tasks);
-    setTreeData(updatedTree);
-  },
-  getTreeData: () => treeData,
-  handleAction: (action) => {
-    if (!selectedId) return;
+  ({ value, onChange }, ref) => {    
+    
+    // 只保留「不影響外部資料真相」的內部狀態，例如剪貼簿
+    const [clipboardNode, setClipboardNode] = useState<TreeNode | null>(null);
 
-    if (action === 'rename') {
-      setTreeData(renameNodeInTree(treeData, selectedId));
-    } else if (action === 'delete') {
-      const result = deleteNodeFromTree(treeData, selectedId);
-      if (result) setTreeData(result);
-    } else if (action === 'add') {
-      setTreeData(addNodeToTree(treeData, selectedId));
-    } else if (action === 'toggleView') {
-      const toggle = (tree: TreeNode): TreeNode => {
-        if (tree.id === selectedId) {
-          return {
-            ...tree,
-            displayMode: tree.displayMode === 'list' ? 'tree' : 'list',
-          };
-        }
-        return {
-          ...tree,
-          children: tree.children?.map(toggle),
-        };
-      };
-      setTreeData(toggle(treeData));
+    // 受控：任何資料變更只呼叫 onChange
+    const emit = (next: TreeNode) => onChange(next);
+    // ---- CRUD ----
+
+function setNodeProgress(nodeId: string, v: number) {
+  const clamp = Math.max(0, Math.min(100, v));
+  console.log('%c[TreeClient] setNodeProgress', 'color: green; font-weight: bold;', nodeId, clamp);
+
+  function walk(root: TreeNode): TreeNode {
+    if (root.id === nodeId) {
+      console.log('找到目標節點:', root);
+      return { ...root, progress: clamp };
     }
-  },
-  handleCutNode: () => {
-    if (!selectedId || selectedId === 'root') return;
-    const found = findNodeById(treeData, selectedId);
-    if (!found) return;
-    const updatedTree = removeNodeById(treeData, selectedId);
-    setTreeData(updatedTree);
-    setClipboardNode(found);
-  },
-  handlePasteNode: () => {
-    if (!selectedId || !clipboardNode) return;
-    const updatedTree = addNodeToTree(treeData, selectedId, [clipboardNode.name]);
-    setTreeData(updatedTree);
-    setClipboardNode(null);
-  }
-}));
+    if (!root.children?.length) return root;
 
-
-  const isDescendant = (node: TreeNode, targetId: string): boolean => {
-    if (node.id === targetId) return true
-    return node.children?.some((child) => isDescendant(child, targetId)) ?? false
+    return { ...root, children: root.children.map(walk) };
   }
 
-  const removeNodeAndReturn = (tree: TreeNode, id: string): [TreeNode, TreeNode | null] => {
-    if (tree.children) {
-      const idx = tree.children.findIndex((c) => c.id === id)
-      if (idx !== -1) {
-        const removed = tree.children[idx]
-        const newChildren = [...tree.children.slice(0, idx), ...tree.children.slice(idx + 1)]
-        return [{ ...tree, children: newChildren }, removed]
-      }
+  const nextTree = walk(value);
 
-      const newChildren: TreeNode[] = []
-      let removedNode: TreeNode | null = null
+  console.log('value === nextTree ?', value === nextTree);
+  console.log('更新後樹:', nextTree);
 
-      for (const child of tree.children) {
-        const [updatedChild, removed] = removeNodeAndReturn(child, id)
-        newChildren.push(updatedChild)
-        if (removed) removedNode = removed
-      }
-
-      return [{ ...tree, children: newChildren }, removedNode]
-    }
-
-    return [tree, null]
-  }
-
-  const insertNodeAsChild = (tree: TreeNode, parentId: string, newNode: TreeNode): TreeNode => {
-    if (tree.id === parentId) {
-      return {
-        ...tree,
-        children: [...(tree.children || []), newNode],
-      }
-    }
-
-    return {
-      ...tree,
-      children: tree.children?.map((child) =>
-        insertNodeAsChild(child, parentId, newNode)
-      ),
-    }
-  }
-
-  const updateTextOffset = (tree: TreeNode): TreeNode => {    
-    return {
-      ...tree,
-      children: tree.children?.map(updateTextOffset),
-    }
-  }
-
-
-const handleCutNode = () => {
-  if (!selectedId || selectedId === 'root') return
-  const found = findNodeById(treeData, selectedId)
-  if (!found) return
-  const updatedTree = removeNodeById(treeData, selectedId)
-  setTreeData(updatedTree)
-  setClipboardNode(found)
+  emit(nextTree);
 }
 
-const handlePasteNode = () => {
-  if (!selectedId || !clipboardNode) return
-  const updatedTree = addNodeToTree(treeData, selectedId, [clipboardNode.name])
-  setTreeData(updatedTree)
-  setClipboardNode(null)
+function setNodePriority(nodeId: string, v: number) {
+  const clamp = Math.max(1, Math.min(5, Math.round(v)));
+  console.log('%c[TreeClient] setNodePriority', 'color: blue; font-weight: bold;', nodeId, clamp);
+
+  function walk(root: TreeNode): TreeNode {
+    if (root.id === nodeId) {
+      console.log('找到目標節點:', root);
+      return { ...root, priority: clamp };
+    }
+    if (!root.children?.length) return root;
+
+    return { ...root, children: root.children.map(walk) };
+  }
+
+  const nextTree = walk(value);
+
+  console.log('value === nextTree ?', value === nextTree);
+  console.log('更新後樹:', nextTree);
+
+  emit(nextTree);
+}
+function updateNode(nodeId: string, updates: Partial<TreeNode>) {
+  function walk(root: TreeNode): TreeNode {
+    if (root.id === nodeId) {
+      return { ...root, ...updates };
+    }
+    if (!root.children?.length) return root;
+    return { ...root, children: root.children.map(walk) };
+  }
+
+  emit(walk(value));
 }
 
-const handleNodeClick = (nodeData: any) => {
-  const id = nodeData.data.id;
-  const name = nodeData.data.name;
-  onNodeSelect(id, name); // ✅ 呼叫 props，讓 TaskGenPage 控制
+
+
+
+    function appendChildren(parentId: string, childOrChildren: ChildInput | ChildInput[]) {
+      const arr = Array.isArray(childOrChildren) ? childOrChildren : [childOrChildren];
+      const next = addNodeToTree(value, parentId, arr);
+      emit(next);
+    }
+
+const rename = (nodeId: string, nextName?: string) => {
+  if (!nextName || !nextName.trim()) return
+  const next = renameNodeInTree(value, nodeId, nextName.trim())
+  emit(next)
 };
 
+    const remove = (nodeId: string) => {
+      if (nodeId === 'root') return;
+      const next = deleteNodeFromTree(value, nodeId);
+      if (next) emit(next);
+    };
+
+    // ---- 剪貼簿 ----
+    const cut = (nodeId: string) => {
+      if (nodeId === 'root') return;
+      const found = findNodeById(value, nodeId);
+      if (!found) return;
+      const next = removeNodeById(value, nodeId);
+      emit(next);
+      // 深拷貝確保後續互不影響
+      setClipboardNode(typeof structuredClone === 'function' ? structuredClone(found) : JSON.parse(JSON.stringify(found)));
+    };
+
+    const paste = (targetParentId: string) => {
+      if (!clipboardNode) return;
+      // 遞迴重生 ID，避免子孫節點 ID 碰撞
+      const reIdSubtree = (n: TreeNode): TreeNode => ({
+        ...n,
+        id: (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).toString(),
+        children: n.children?.map(reIdSubtree),
+      });
+      appendChildren(targetParentId, reIdSubtree(clipboardNode)); // 直接丟單個 TreeNode
+      setClipboardNode(null);
+    };
+
+    // ---- 暴露命令式 API（僅包裝上述純函式，不繞過受控資料流）----
+    useImperativeHandle(ref, () => ({
+      appendChildren,              // ← 暴露多載方法
+      rename,
+      remove,
+      cut,
+      paste,
+      setNodeProgress,
+      setNodePriority,
+      updateNode,
+      getSubtree: (nodeId) => findNodeById(value, nodeId) ?? null,
+      getTree: () => value,
+    }));
 
 
-
-  const handleAction = async (action: 'add' | 'rename' | 'delete'|'toggleView') => {
-    if (!selectedId) return
-
-    if (action === 'rename') {
-      setTreeData(renameNodeInTree(treeData, selectedId))
-    } else if (action === 'delete') {
-      const result = deleteNodeFromTree(treeData, selectedId)
-      if (result) setTreeData(result)
-    } else if (action === 'add') {
-      setTreeData(addNodeToTree(treeData, selectedId))
-    } 
-     else if (action === 'toggleView') {
-  const toggle = (tree: TreeNode): TreeNode => {
-    if (tree.id === selectedId) {
-      return {
-        ...tree,
-        displayMode: tree.displayMode === 'list' ? 'tree' : 'list',
-      }
-    }
-    return {
-      ...tree,
-      children: tree.children?.map(toggle),
-    }
+    // 這個元件不負責渲染 UI，只負責資料編輯命令
+    return null;
   }
-  setTreeData(toggle(treeData))
-}
+);
 
-  }
-
-return (
-  <div className="w-full h-full">
-    <RenderTreePanel
-      treeData={treeData}
-      selectedId={selectedId}
-      onUpdateTree={setTreeData}
-      onNodeSelect={(id, name) => {
-        setSelectedId(id)
-        onNodeSelect(id, name)
-      }}
-      clipboardNode={clipboardNode}
-      setClipboardNode={setClipboardNode}
-    />
-  </div>
-)
-});
-export default TreeClient
+TreeClient.displayName = 'TreeClient';
+export default TreeClient;

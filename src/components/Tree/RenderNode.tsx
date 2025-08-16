@@ -6,28 +6,22 @@ interface RenderNodeProps {
   nodeDatum: TreeNode
   selectedId: string | null
   onSelect: (id: string, name: string) => void
-  onMouseDown: (e: React.MouseEvent<SVGTextElement>, id: string, x: number, y: number) => void
   onMouseEnter: (id: string) => void
-
-  // ✅ 如果你還有傳入拖曳起點，也要加這一行
-  onMouseDownStart: (id: string, x: number, y: number) => void;
 }
 
 const RenderNode: React.FC<RenderNodeProps> = ({
   nodeDatum,
   selectedId,
   onSelect,
-  onMouseDown,
   onMouseEnter,          // ✅ 加上這行
-  onMouseDownStart       // ✅ 加上這行
 }) => {
 
   const isSelected = nodeDatum.id === selectedId
   const offset = nodeDatum.textOffset ?? { x: 15, y: 5 }
   const progress = nodeDatum.progress ?? 0
 
+  //Props 的最底層點擊事件被監聽
   const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation() // ✅ 避免觸發畫布事件
     onSelect(nodeDatum.id, nodeDatum.name)
   }
 
@@ -60,11 +54,8 @@ const RenderNode: React.FC<RenderNodeProps> = ({
 <g
   onClick={handleClick}
   onMouseEnter={() => onMouseEnter(nodeDatum.id)}
-  onMouseDown={(e) => {
-  e.stopPropagation();
-  onMouseDownStart(nodeDatum.id, e.clientX, e.clientY);  // ✅ 傳入三個參數
-  
-}}
+  onMouseDown={() => {}  
+}
 style={{ cursor: 'grab', pointerEvents: 'visiblePainted' }}
 >
 
@@ -75,8 +66,7 @@ style={{ cursor: 'grab', pointerEvents: 'visiblePainted' }}
         stroke="#000000ff"
         strokeWidth={2}
         onMouseDown={(e) => {
-        e.stopPropagation();                      // ✅ 避免畫布拖曳事件觸發
-        onMouseDownStart(nodeDatum.id, e.clientX, e.clientY);    
+        e.stopPropagation();                      // ✅ 避免畫布拖曳事件觸發  
         }}
         onMouseEnter={() => onMouseEnter(nodeDatum.id)}
         pointerEvents="all"
@@ -106,10 +96,7 @@ style={{ cursor: 'grab', pointerEvents: 'visiblePainted' }}
         fontFamily="Arial, sans-serif"
         fontSize={16}
         onMouseEnter={() => onMouseEnter(nodeDatum.id)}
-        onMouseDown={(e) => {
-          e.stopPropagation() // ✅ 防止畫布 mouseDown
-          onMouseDown(e, nodeDatum.id, e.clientX, e.clientY)
-        }}
+        onMouseDown={()=>{}}
         pointerEvents="all" // ✅ 改成 all，讓它真的能接到事件
       >
         {nodeDatum.name} {progress}%

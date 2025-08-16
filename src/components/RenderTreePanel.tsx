@@ -1,15 +1,12 @@
 import React, { useState } from 'react'
 import Tree from 'react-d3-tree'
-import RenderNode from './RenderNode';
+import RenderNode from './Tree/RenderNode';
 import type { TreeNode } from '@/type/Tree'
 
 interface RenderTreePanelProps {
   treeData: TreeNode
   selectedId: string | null
   onNodeSelect: (id: string, name: string) => void
-  onUpdateTree: (newTree: TreeNode) => void
-  clipboardNode: TreeNode | null
-  setClipboardNode: (node: TreeNode | null) => void
 }
 
 
@@ -17,9 +14,6 @@ const RenderTreePanel: React.FC<RenderTreePanelProps> = ({
   treeData,
   selectedId,
   onNodeSelect,
-  onUpdateTree,
-  clipboardNode,
-  setClipboardNode
 }) => {
 
 const renderNode = ({ nodeDatum }: any) => (
@@ -30,8 +24,6 @@ const renderNode = ({ nodeDatum }: any) => (
       onNodeSelect(id, name)
     }}
     onMouseEnter={() => {}}        // 🔧 加這個作為 placeholder
-    onMouseDown={() => {}}         // 🔧 同理，加這個
-    onMouseDownStart={() => {}}    // 🔧 也是
   />
 )
 
