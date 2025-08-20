@@ -8,15 +8,79 @@ interface RenderTreePanelProps {
   treeData: TreeNode;
   selectedId: string | null;
   onNodeSelect: (id: string, name: string) => void;
+  onImportTree?: (tree: TreeNode) => void; // 監聽拖移JSON事件
 }
+
+
 
 const RenderTreePanel: React.FC<RenderTreePanelProps> = ({
   treeData,
   selectedId,
   onNodeSelect,
+  onImportTree,
 }) => {
+  
   const containerRef = useRef<HTMLDivElement>(null);
   const [translate, setTranslate] = useState<{ x: number; y: number }>({ x: 300, y: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  // 2) 監聽拖放事件（掛在畫布容器）
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const stop = (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); };
+
+    const onDragEnter = (e: DragEvent) => {
+      stop(e);
+      dragCounterRef.current += 1;
+      setIsDragging(true);
+    };
+    const onDragOver = (e: DragEvent) => {
+      stop(e);
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    };
+    const onDragLeave = (e: DragEvent) => {
+      stop(e);
+      dragCounterRef.current -= 1;
+      if (dragCounterRef.current <= 0) setIsDragging(false);
+    };
+    const onDrop = async (e: DragEvent) => {
+      stop(e);
+      dragCounterRef.current = 0;
+      setIsDragging(false);
+
+      const file = e.dataTransfer?.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+
+        // 允許兩種常見格式：直接是 TreeNode，或包在 { tree } / { nodes }
+        const maybeTree =
+          (data && typeof data === 'object' && 'id' in data && 'name' in data)
+            ? data
+            : data?.tree ?? data?.nodes;
+
+        if (!maybeTree) throw new Error('不是有效的樹 JSON 格式');
+        onImportTree?.(maybeTree as TreeNode);
+      } catch (err) {
+        alert('JSON 解析失敗或格式不符');
+      }
+    };
+
+    el.addEventListener('dragenter', onDragEnter);
+    el.addEventListener('dragover', onDragOver);
+    el.addEventListener('dragleave', onDragLeave);
+    el.addEventListener('drop', onDrop);
+    return () => {
+      el.removeEventListener('dragenter', onDragEnter);
+      el.removeEventListener('dragover', onDragOver);
+      el.removeEventListener('dragleave', onDragLeave);
+      el.removeEventListener('drop', onDrop);
+    };
+  }, [onImportTree]);
 
   const renderNode = (rd: any) => {
     console.log(rd)
@@ -122,7 +186,17 @@ const RenderTreePanel: React.FC<RenderTreePanelProps> = ({
         onMouseDown={refocus}
         className="border h-[90%] bg-white outline-none focus:ring-2 focus:ring-blue-500"
       >
-      
+      {/* 拖放遮罩 */}
+        {isDragging && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center
+                          bg-black/50 border-4 border-dashed border-white
+                          pointer-events-none">
+            <div className="rounded-xl bg-white/90 px-6 py-4 text-gray-900 text-center">
+              <div className="font-semibold">拖曳 .json 到此匯入樹</div>
+              <div className="text-xs opacity-70 mt-1">支援 Raven 匯出或相容格式</div>
+            </div>
+          </div>
+        )}
         <Tree
           data={visibleTree}
           orientation="vertical"

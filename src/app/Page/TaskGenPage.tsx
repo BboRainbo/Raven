@@ -295,7 +295,9 @@ function handleRedo() {
           >
             提交作業(s)
           </button>
-          <button onClick={() => exportTree(tree)}>
+          
+          <button onClick={() => exportTree(tree)}
+            className="bg-pink-500 text-white px-2 py-1 disabled:opacity-50">
             匯出樹
           </button>
 
@@ -306,6 +308,7 @@ function handleRedo() {
                 (newTree) => setTreeHistory(prev => pushHistory(prev, newTree))
               )
             }
+            className="bg-pink-500 text-white px-2 py-1 disabled:opacity-50"
           >
             匯入樹
           </button>
@@ -339,15 +342,19 @@ function handleRedo() {
         {/* Tree 視圖 */}
         <div className="flex-1 min-h-0">
           <RenderTreePanel
-            //傳入樹的資訊提供渲染 ，父=>子傳遞
             treeData={tree}
             selectedId={selectedNodeId}
-            //偵測並回傳被點選目標 ，子=>父傳遞
             onNodeSelect={(id, name) => {
-              setSelectedNodeId(id)
-              setSelectedNodeName(name)
+              setSelectedNodeId(id);
+              setSelectedNodeName(name);
+            }}
+            onImportTree={(newTree) => {
+              setTree(newTree);
+              setTreeHistory(prev => pushHistory(prev, newTree));
             }}
           />
+
+
         </div>
 
         {/* 
