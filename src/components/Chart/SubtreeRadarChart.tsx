@@ -12,7 +12,11 @@ import {
   Radar,
   Tooltip,
 } from "recharts";
-
+import {
+  radarItemsFromChildren,
+  radarItemsFromChildrenLeafAvg,
+  radarItemsAvgByDepth,
+} from "@/utils/Tree-subtree-utils";
 
 type Mode = "children" | "childrenLeafAvg" | "depth";
 
