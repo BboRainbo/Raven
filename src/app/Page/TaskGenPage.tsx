@@ -1,6 +1,7 @@
 'use client'
-
-
+//接收router跳轉時傳遞資訊
+import { useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import RenderTreePanel from '../../components/RenderTreePanel'
 import AIPanel from '../../components/AIPanel'
 import React, { useState, useRef, useMemo, useEffect } from 'react'
@@ -19,7 +20,8 @@ import GanttDrawer from '../../components/Drawer/GanttDrawer'
 import NodeEditDrawer from '../../components/Drawer/NodeEditorDrawer'
 
 export default function TaskGenPage() {
-  // ✅ 單一真相：父層持有整棵樹
+
+
 const initialTreeData: TreeNode = {
   id: 'root',
   name: '轉職計畫',
@@ -48,17 +50,18 @@ const initialTreeData: TreeNode = {
     { id: 'ColdReach', name: 'ColdReach', progress: 80, textOffset: { x: 15, y: 5 } }
   ]
 };
+const router = useRouter()
+//Tree單一資料來源(在這裡主控而非TC)、UI 選取狀態（與資料解耦）
+const [tree, setTree] = useState<TreeNode>(initialTreeData)  
+const [selectedNodeId, setSelectedNodeId] = useState<string>('')   // 未選取時為空字串/你也可用 null
+const [selectedNodeName, setSelectedNodeName] = useState<string>('')
 
+//接收其他 page 的"插入子樹指令
 
-  //Tree單一資料來源(在這裡主控而非TC)、UI 選取狀態（與資料解耦）
-  const [tree, setTree] = useState<TreeNode>(initialTreeData)  
-  const [selectedNodeId, setSelectedNodeId] = useState<string>('')   // 未選取時為空字串/你也可用 null
-  const [selectedNodeName, setSelectedNodeName] = useState<string>('')
+//快照功能狀態
+const [treeHistory, setTreeHistory] = useState(() => createHistory(initialTreeData))
 
-  //快照功能狀態
-  const [treeHistory, setTreeHistory] = useState(() => createHistory(initialTreeData))
-
-  //把TC的 recall 新增一個動作 : 推入 treeHistory[]
+//快照功能 : 把TC的 recall 新增一個動作 : 推入 treeHistory[]
 function handleTreeChange(newTree: TreeNode) {
   setTree(newTree)
   setTreeHistory(prev => pushHistory(prev, newTree))
@@ -70,7 +73,6 @@ function handleUndo() {
     return updated
   })
 }
-
 function handleRedo() {
   setTreeHistory(prev => {
     const updated = redo(prev)
@@ -81,24 +83,33 @@ function handleRedo() {
 
   //TreeClient(TC) 命令式 API，引進 TC 的 CRUD 操作
   const treeClientRef = useRef<TreeClientHandle>(null)
-
   //作業上傳頁面的狀態
   const [showEvaluate, setShowEvaluate] = useState(false);
-
   // 甘特圖的狀態
   const [showGantt, setShowGantt] = useState(false);
-
   //節點編輯器(debug用)
   const [showEdit, setShowEdit] = useState(false);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
-
-
-
   // TODO: Radar 圖的 state 不應該讓這裡持有 而是 radar page持有
   const [showRadar, setShowRadar] = useState(false)
   const [radarMode, setRadarMode] = useState<'children' | 'childrenLeafAvg' | 'depth'>('childrenLeafAvg')
   const [radarDepth, setRadarDepth] = useState<number>(2)
 
+  const sp = useSearchParams()
+  useEffect(() => {
+    const insertSubtreeStr = sp.get('insertSubtree')
+    const parentId = sp.get('parentId')
+
+    if (insertSubtreeStr && parentId && treeClientRef.current) {
+      try {
+        const subtree = JSON.parse(insertSubtreeStr)
+        treeClientRef.current.insertSubtree(parentId, subtree)
+        router.replace('/')
+      } catch (e) {
+        console.error('JSON 解析錯誤', e)
+      }
+    }
+  }, [sp])
 
   //快捷鍵設定
   //Undo/Redo快捷鍵
@@ -298,6 +309,18 @@ function handleRedo() {
           >
             匯入樹
           </button>
+                    <button
+            onClick={() => {
+              if (!selectedNodeId) return
+              router.push(
+                `/ai-discuss?nodeId=${selectedNodeId}&nodeName=${encodeURIComponent(selectedNodeName)}`
+              )
+            }}
+            className="bg-lime-500 text-black px-3 py-1 rounded disabled:opacity-50"
+            disabled={!selectedNodeId}
+          >
+            與AI討論子任務
+          </button>
 
 
 
@@ -374,7 +397,7 @@ function handleRedo() {
 <EvaluationDrawer
   open={showEvaluate}
   onClose={() => setShowEvaluate(false)}
-  onSubmit={(text, code) => {  }}//TODO:待補回傳作業後的評量邏輯 recall function
+  onSubmit={(text, code) => {  }}//TODO:待補回傳作業後的評量邏輯
 />
 
 
@@ -387,6 +410,8 @@ function handleRedo() {
 
 </div>
 )
+
+
   
 }
 

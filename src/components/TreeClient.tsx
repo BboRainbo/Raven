@@ -17,6 +17,7 @@ export interface TreeClientHandle {
   remove: (nodeId: string) => void;
   cut: (nodeId: string) => void;
   paste: (targetParentId: string) => void;
+  insertSubtree: (parentId: string, subtree: TreeNode) => void
   setNodeProgress: (nodeId: string, value: number) => void;
   setNodePriority: (nodeId: string, value: number) => void;
   getSubtree: (nodeId: string) => TreeNode | null;
@@ -35,24 +36,40 @@ const TreeClient = forwardRef<TreeClientHandle, TreeClientProps>(
     
     // 只保留「不影響外部資料真相」的內部狀態，例如剪貼簿
     const [clipboardNode, setClipboardNode] = useState<TreeNode | null>(null);
-
     // 受控：任何資料變更只呼叫 onChange
     const emit = (next: TreeNode) => onChange(next);
     // ---- CRUD ----
 
-function setNodeProgress(nodeId: string, v: number) {
-  const clamp = Math.max(0, Math.min(100, v));
-  console.log('%c[TreeClient] setNodeProgress', 'color: green; font-weight: bold;', nodeId, clamp);
+    function setNodeProgress(nodeId: string, v: number) {
+      const clamp = Math.max(0, Math.min(100, v));
+      console.log('%c[TreeClient] setNodeProgress', 'color: green; font-weight: bold;', nodeId, clamp);
+      function walk(root: TreeNode): TreeNode {
+        if (root.id === nodeId) {
+          console.log('找到目標節點:', root);
+          return { ...root, progress: clamp };
+        }
+        if (!root.children?.length) return root;
 
-  function walk(root: TreeNode): TreeNode {
-    if (root.id === nodeId) {
-      console.log('找到目標節點:', root);
-      return { ...root, progress: clamp };
+        return { ...root, children: root.children.map(walk) };
+      }
+      const nextTree = walk(value);
+      console.log('value === nextTree ?', value === nextTree);
+      console.log('更新後樹:', nextTree);
+      emit(nextTree);
     }
-    if (!root.children?.length) return root;
+    function setNodePriority(nodeId: string, v: number) {
+      const clamp = Math.max(1, Math.min(5, Math.round(v)));
+      console.log('%c[TreeClient] setNodePriority', 'color: blue; font-weight: bold;', nodeId, clamp);
 
-    return { ...root, children: root.children.map(walk) };
-  }
+      function walk(root: TreeNode): TreeNode {
+        if (root.id === nodeId) {
+         console.log('找到目標節點:', root);
+          return { ...root, priority: clamp };
+        }
+        if (!root.children?.length) return root;
+
+        return { ...root, children: root.children.map(walk) };
+      }
 
   const nextTree = walk(value);
 
@@ -60,63 +77,32 @@ function setNodeProgress(nodeId: string, v: number) {
   console.log('更新後樹:', nextTree);
 
   emit(nextTree);
-}
-
-function setNodePriority(nodeId: string, v: number) {
-  const clamp = Math.max(1, Math.min(5, Math.round(v)));
-  console.log('%c[TreeClient] setNodePriority', 'color: blue; font-weight: bold;', nodeId, clamp);
-
-  function walk(root: TreeNode): TreeNode {
-    if (root.id === nodeId) {
-      console.log('找到目標節點:', root);
-      return { ...root, priority: clamp };
     }
-    if (!root.children?.length) return root;
-
-    return { ...root, children: root.children.map(walk) };
-  }
-
-  const nextTree = walk(value);
-
-  console.log('value === nextTree ?', value === nextTree);
-  console.log('更新後樹:', nextTree);
-
-  emit(nextTree);
-}
-function updateNode(nodeId: string, updates: Partial<TreeNode>) {
-  function walk(root: TreeNode): TreeNode {
-    if (root.id === nodeId) {
-      return { ...root, ...updates };
-    }
-    if (!root.children?.length) return root;
-    return { ...root, children: root.children.map(walk) };
-  }
-
-  emit(walk(value));
-}
-
-
-
-
+    function updateNode(nodeId: string, updates: Partial<TreeNode>) {
+      function walk(root: TreeNode): TreeNode {
+        if (root.id === nodeId) {
+          return { ...root, ...updates };
+        }
+        if (!root.children?.length) return root;
+        return { ...root, children: root.children.map(walk) };
+      }
+      emit(walk(value));
+    }    
     function appendChildren(parentId: string, childOrChildren: ChildInput | ChildInput[]) {
       const arr = Array.isArray(childOrChildren) ? childOrChildren : [childOrChildren];
       const next = addNodeToTree(value, parentId, arr);
       emit(next);
     }
-
-const rename = (nodeId: string, nextName?: string) => {
-  if (!nextName || !nextName.trim()) return
-  const next = renameNodeInTree(value, nodeId, nextName.trim())
-  emit(next)
-};
-
+    const rename = (nodeId: string, nextName?: string) => {
+      if (!nextName || !nextName.trim()) return
+      const next = renameNodeInTree(value, nodeId, nextName.trim())
+      emit(next)
+    };
     const remove = (nodeId: string) => {
       if (nodeId === 'root') return;
       const next = deleteNodeFromTree(value, nodeId);
       if (next) emit(next);
     };
-
-    // ---- 剪貼簿 ----
     const cut = (nodeId: string) => {
       if (nodeId === 'root') return;
       const found = findNodeById(value, nodeId);
@@ -126,7 +112,6 @@ const rename = (nodeId: string, nextName?: string) => {
       // 深拷貝確保後續互不影響
       setClipboardNode(typeof structuredClone === 'function' ? structuredClone(found) : JSON.parse(JSON.stringify(found)));
     };
-
     const paste = (targetParentId: string) => {
       if (!clipboardNode) return;
       // 遞迴重生 ID，避免子孫節點 ID 碰撞
@@ -139,6 +124,17 @@ const rename = (nodeId: string, nextName?: string) => {
       setClipboardNode(null);
     };
 
+const insertSubtree = (parentId: string, subtree: TreeNode) => {
+  const next = structuredClone(value) // value 是父層傳下來的 tree
+  const parent = findNodeById(next, parentId)
+  if (parent) {
+    parent.children = [...(parent.children ?? []), subtree]
+  }
+  emit(next) // ✅ 回傳給父層，交由 TaskGenPage 更新狀態
+}
+
+
+
     // ---- 暴露命令式 API（僅包裝上述純函式，不繞過受控資料流）----
     useImperativeHandle(ref, () => ({
       appendChildren,              // ← 暴露多載方法
@@ -146,6 +142,7 @@ const rename = (nodeId: string, nextName?: string) => {
       remove,
       cut,
       paste,
+      insertSubtree,
       setNodeProgress,
       setNodePriority,
       updateNode,
