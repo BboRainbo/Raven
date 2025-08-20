@@ -3,16 +3,11 @@
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
-
-interface Step2PageProps {
-  onAddSubtasks: (tasks: string[]) => void
-}
-
-export default function Step2Page({ onAddSubtasks }: Step2PageProps) {
+export default function Step2Page() {
   const router = useRouter()
   const sp = useSearchParams()
   const brief = sp.get('brief') ?? ''
-  const parentId = sp.get('nodeId') ?? ''   // ✅ Step1 記得傳 nodeId
+  const parentId = sp.get('nodeId') ?? ''
 
   const [aiDescription, setAiDescription] = useState('')
   const [subtasks, setSubtasks] = useState<string[]>([])
@@ -24,13 +19,7 @@ export default function Step2Page({ onAddSubtasks }: Step2PageProps) {
 
     async function fetchAI() {
       const promptText = `請針對以下描述，提出一個總體描述，以及 3~5 個子任務建議，以選項清單回覆格式呈現：
-描述內容：「${brief}」
----
-回覆格式：
-描述：...
-- 子任務一
-- 子任務二
-- 子任務三`
+描述內容：「${brief}」`
 
       const res = await fetch('/api/gemini', {
         method: 'POST',
@@ -56,35 +45,33 @@ export default function Step2Page({ onAddSubtasks }: Step2PageProps) {
   }, [brief])
 
   // 🚀 定案
-const finalizeAndBack = () => {
-  if (selectedTasks.length === 0) {
-    alert('請至少選擇一個子任務')
-    return
-  }
+  const finalizeAndBack = () => {
+    if (selectedTasks.length === 0) {
+      alert('請至少選擇一個子任務')
+      return
+    }
 
-  // ✅ 產生 JSON 子樹
-  const subtree = {
-    id: Date.now().toString(), // 簡單生成一個 ID
-    name: aiDescription || brief, // 主節點名稱 (用描述或 brief)
-    progress: 0,
-    textOffset: { x: 15, y: 5 },
-    children: selectedTasks.map(task => ({
-      id: Math.random().toString(36).slice(2),
-      name: task,
+    const subtree = {
+      id: Date.now().toString(),
+      name: aiDescription || brief,
       progress: 0,
-      textOffset: { x: 15, y: 5 }
-    }))
-  }
-console.log('[DEBUG Step2] Subtree JSON:', subtree)
-  // ✅ 帶回 parentId & JSON 給主頁
-  router.push(
-    `/?insertSubtree=${encodeURIComponent(JSON.stringify(subtree))}&parentId=${parentId}`
-  )
-}
+      textOffset: { x: 15, y: 5 },
+      children: selectedTasks.map(task => ({
+        id: Math.random().toString(36).slice(2),
+        name: task,
+        progress: 0,
+        textOffset: { x: 15, y: 5 }
+      }))
+    }
 
+    router.push(
+      `/?insertSubtree=${encodeURIComponent(JSON.stringify(subtree))}&parentId=${parentId}`
+    )
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-900 text-white">
+      {/* 左半：AI 建議 */}
       <div className="w-2/3 p-6 space-y-6">
         <h3 className="text-lg font-bold mb-2">AI 回覆的 Description（可編輯）</h3>
         <textarea
@@ -93,7 +80,6 @@ console.log('[DEBUG Step2] Subtree JSON:', subtree)
           className="w-full h-28 bg-gray-800 rounded p-2"
         />
 
-        {/* 子任務選單 */}
         {subtasks.map((task, idx) => (
           <div key={idx} className="bg-gray-800 p-3 rounded mt-4 flex items-center space-x-2">
             <input
@@ -121,7 +107,7 @@ console.log('[DEBUG Step2] Subtree JSON:', subtree)
         </div>
       </div>
 
-      {/* 右側討論歷程 */}
+      {/* 右半：歷程 */}
       <div className="w-1/3 p-6 border-l border-gray-700">
         <h3 className="text-lg font-bold mb-4">討論歷程</h3>
         <ul className="text-sm space-y-2">
