@@ -2,7 +2,13 @@
 import { useState } from 'react';
 import SideDrawer from '../Drawer/ui/SideDrawer';
 
-export default function EvaluationDrawer({ open, onClose, onSubmit }) {
+type EvaluationDrawerProps = {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (text: string, code: string) => void;
+};
+
+export default function EvaluationDrawer({ open, onClose, onSubmit }: EvaluationDrawerProps) {
   const [evalText, setEvalText] = useState('');
   const [evalCode, setEvalCode] = useState('');
 

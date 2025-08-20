@@ -34,7 +34,7 @@ export default function NodeEditDrawer({
         setStart(latestNode.start ?? '');
         setDescription(latestNode.description ?? '');
         setEnd(latestNode.end ?? '');
-        setBlockedBy(latestNode.blockedby??'');
+        setBlockedBy(latestNode.blockedBy??'');
       }
     }
 }, [nodeId, open, treeClientRef]);
@@ -59,17 +59,14 @@ const handleSave = () => {
 useEffect(() => {
   function handleKeyDown(e: KeyboardEvent) {
     const active = document.activeElement;
-
     // 🔹 如果在 textarea，允許換行，不要攔截 Enter
     if (active?.tagName === 'TEXTAREA') return;
-
     // 🔹 只有在 input 才攔截 Enter，避免跳頁
     if (active?.tagName === 'INPUT' && e.key === 'Enter') {
       e.preventDefault();
       handleSave();
     }
   }
-
   window.addEventListener('keydown', handleKeyDown);
   return () => {
     window.removeEventListener('keydown', handleKeyDown);

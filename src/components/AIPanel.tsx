@@ -30,8 +30,9 @@ export default function AIPanel({ selectedNodeName, onAddSubtasks }: AIPanelProp
 
     const options = text
       .split('\n')
-      .filter(line => line.trim().startsWith('-'))
-      .map(line => line.replace(/^-\s*/, '').trim())
+      .filter((line: string) => line.trim().startsWith('-'))
+      .map((line: string) => line.replace(/^-\s*/, '').trim())
+
 
     setDiscussionOptions(options)
   }

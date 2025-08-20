@@ -25,35 +25,10 @@ const RenderNode: React.FC<RenderNodeProps> = ({
     onSelect(nodeDatum.id, nodeDatum.name)
   }
 
-  // 條列模式
-  if (nodeDatum.displayMode === 'list' && nodeDatum.children?.length) {
-    // <foreignObject 是把 HTML => SVG的翻譯義器，可讓你在SVG畫布 用HTML語法去畫圖
-    return (
-      <g onClick={handleClick}>
-        
-        <foreignObject x={-100} y={10} width={200} height={nodeDatum.children.length * 50}>
-          <div xmlns="http://www.w3.org/1999/xhtml" className="bg-white border p-2 rounded shadow text-xs">
-            <div className="font-bold mb-1">{nodeDatum.name}</div>
-            {nodeDatum.children.map((child) => (
-              <div key={child.id} className="mb-2">
-                <div className="text-[13px]">{child.name}</div>
-                <div className="w-full bg-gray-200 h-2 rounded">
-                  <div
-                    className="bg-blue-600 h-2 rounded"
-                    style={{ width: `${child.progress ?? 0}%` }}
-                  />
-                </div>
-                <div className="text-right text-gray-500 text-[11px]">{(child.progress ?? 0)}%</div>
-              </div>
-            ))}
-          </div>
-        </foreignObject>
-      </g>
-    )
-  }
 
   return (
 <g
+
   data-location = "720,190"
   onClick={handleClick}
   onMouseEnter={() => onMouseEnter(nodeDatum.id)}

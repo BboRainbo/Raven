@@ -2,14 +2,10 @@ import { generateUniqueId } from '@/utils/generateUniqueId'
 import type { TreeNode } from '@/type/Tree'
 import { defaultNodeProps } from '@/utils/date/defaultNodeProps'
 
-// 🧠 多載宣告
-export function addNodeToTree(tree: TreeNode, parentId: string): TreeNode
-export function addNodeToTree(tree: TreeNode, parentId: string, newNode: string): TreeNode
-export function addNodeToTree(tree: TreeNode, parentId: string, newNode: TreeNode): TreeNode
-export function addNodeToTree(tree: TreeNode, parentId: string, newNodes: string[]): TreeNode
-export function addNodeToTree(tree: TreeNode, parentId: string, newNodes: TreeNode[]): TreeNode
-
-// 🧠 實作
+/**
+ * 在樹中指定 parentId 的節點下新增子節點
+ * - newNodes 可以是：單個字串 / 單個 TreeNode / 字串陣列 / TreeNode 陣列 / 混合陣列
+ */
 export function addNodeToTree(
   tree: TreeNode,
   parentId: string,
@@ -21,24 +17,20 @@ export function addNodeToTree(
     : [newNodes]
 
   if (tree.id === parentId) {
-    const newChildren: TreeNode[] = itemsArray.map(item => {
-      if (typeof item === 'string') {
-        // ✅ 新建字串節點 → 自動套用 defaultNodeProps
-        return {
-          id: generateUniqueId(),
-          name: item,
-          ...defaultNodeProps(),
-        }
-      } else {
-        // ✅ 如果是物件 → 不覆蓋原本有的值，缺的才補 defaultNodeProps
-        return {
-          ...defaultNodeProps(),
-          ...item,
-          id: generateUniqueId(),
-          children: item.children ? [...item.children] : undefined,
-        }
-      }
-    })
+    const newChildren: TreeNode[] = itemsArray.map(item =>
+      typeof item === 'string'
+        ? {
+            id: generateUniqueId(),
+            name: item,
+            ...defaultNodeProps(),
+          }
+        : {
+            ...defaultNodeProps(),
+            ...item,
+            id: generateUniqueId(),
+            children: item.children ? [...item.children] : undefined,
+          }
+    )
 
     return {
       ...tree,
@@ -48,7 +40,7 @@ export function addNodeToTree(
 
   return {
     ...tree,
-    children: tree.children?.map(child =>
+    children: (tree.children ?? []).map(child =>
       addNodeToTree(child, parentId, newNodes)
     ),
   }

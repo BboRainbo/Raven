@@ -135,7 +135,6 @@ const RenderTreePanel: React.FC<RenderTreePanelProps> = ({
           }}
           renderCustomNodeElement={renderNode}
           enableLegacyTransitions={false}
-          styles={{ links: { stroke: '#000000ff', strokeWidth: 2 } }}
         />
       </div>
     </div>

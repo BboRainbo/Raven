@@ -1,6 +1,7 @@
 // GanttDrawer.tsx
 import SideDrawer from '../Drawer/ui/SideDrawer';
 import SubtreeGanttChart from '../Chart/SubtreeGanttChart';
+import type { TreeNode } from '@/type/Tree'
 
 interface GanttDrawerProps {
   open: boolean;

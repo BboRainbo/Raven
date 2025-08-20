@@ -397,8 +397,12 @@ function handleRedo() {
 <EvaluationDrawer
   open={showEvaluate}
   onClose={() => setShowEvaluate(false)}
-  onSubmit={(text, code) => {  }}//TODO:待補回傳作業後的評量邏輯
+  onSubmit={(text: string, code: string) => {
+    // TODO: 待補回傳作業後的評量邏輯
+    console.log("submit", text, code);
+  }}
 />
+
 
 
 <NodeEditDrawer

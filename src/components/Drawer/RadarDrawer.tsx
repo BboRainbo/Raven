@@ -29,7 +29,6 @@ export default function RadarDrawer({
         <RadarChart
           node={node}
           height={500}
-          onPointClick={onPointClick}
         />
       </div>
     </SideDrawer>

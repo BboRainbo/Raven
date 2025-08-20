@@ -16,7 +16,7 @@ import {
   radarItemsFromChildren,
   radarItemsFromChildrenLeafAvg,
   radarItemsAvgByDepth,
-} from "@/utils/Tree-subtree-utils";
+} from "@/utils/tree-subtree-utils";
 
 type Mode = "children" | "childrenLeafAvg" | "depth";
 
