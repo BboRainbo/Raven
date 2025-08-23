@@ -3,6 +3,7 @@ import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react'
 import Tree, { CustomNodeElementProps } from 'react-d3-tree';
 import RenderNode from './Tree/RenderNode';
 import type { TreeNode } from '@/type/Tree';
+import * as d3 from "d3";
 
 interface RenderTreePanelProps {
   treeData: TreeNode;
@@ -10,8 +11,6 @@ interface RenderTreePanelProps {
   onNodeSelect: (id: string, name: string) => void;
   onImportTree?: (tree: TreeNode) => void; // 監聽拖移JSON事件
 }
-
-
 
 const RenderTreePanel: React.FC<RenderTreePanelProps> = ({
   treeData,
@@ -24,6 +23,57 @@ const RenderTreePanel: React.FC<RenderTreePanelProps> = ({
   const [translate, setTranslate] = useState<{ x: number; y: number }>({ x: 300, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
+
+  //監聽畫布大小
+  const [dimensions, setDimensions] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setDimensions({ width, height });
+      }
+    });
+
+    observer.observe(containerRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
+  //計算畫布中心
+    useEffect(() => {
+    if (dimensions.width === 0 || dimensions.height === 0) return;
+    setTranslate({
+      x: dimensions.width / 2,
+      y: dimensions.height / 3,
+    });
+  }, [dimensions]);
+
+    //設定副作用 => selected ID 改變時，儲存座標，呼叫 setTranslate
+useEffect(() => {
+  if (!selectedId) return;
+  const pos = nodePosRef.current.get(selectedId);
+  if (!pos || dimensions.width === 0 || dimensions.height === 0) return;
+
+  const { x: nx, y: ny } = pos;
+  const cx = dimensions.width / 2;
+  const cy = dimensions.height / 3;
+  const s = 1;
+
+  const tx = cx - nx * s;
+  const ty = cy - ny * s;
+
+  // 用 d3 transition 平滑移動外層 <g>
+  d3.select(".rd3t-g")
+    .transition()
+    .duration(750)      // 動畫時間 (ms)
+    .attr("transform", `translate(${tx},${ty}) scale(${s})`);
+
+  // 注意：這裡就不要再呼叫 setTranslate 了，否則會被 React 覆蓋
+}, [selectedId, dimensions]);
+
 
   // 2) 監聽拖放事件（掛在畫布容器）
   useEffect(() => {
@@ -82,18 +132,25 @@ const RenderTreePanel: React.FC<RenderTreePanelProps> = ({
     };
   }, [onImportTree]);
 
-  const renderNode = (rd: any) => {
-    console.log(rd)
-    console.log("座標:", rd.x, rd.y, "原始資料:", rd.nodeDatum)
-    return (
-      <RenderNode
-        nodeDatum={rd.nodeDatum}
-        selectedId={selectedId}
-        onSelect={(id, name) => onNodeSelect(id, name)}
-        onMouseEnter={() => {}}
-      />
-    )
-  }
+const nodePosRef = useRef(new Map<string, { x: number; y: number }>());
+
+const renderNode = (rd: any) => {
+  const id = rd.nodeDatum.id;
+  nodePosRef.current.set(id, {
+    x: rd.hierarchyPointNode.x,
+    y: rd.hierarchyPointNode.y,
+  });
+
+  return (
+    <RenderNode
+      nodeDatum={rd.nodeDatum}
+      selectedId={selectedId}
+      onSelect={(id, name) => onNodeSelect(id, name)}
+      onMouseEnter={() => {}}
+    />
+  );
+};
+
   const visibleTree = treeData
 
   /** 建索引：id -> { parentId, childrenIds, name } */
@@ -174,7 +231,7 @@ const RenderTreePanel: React.FC<RenderTreePanelProps> = ({
 
 
   //let temp:CustomNodeElementProps;
-  //temp.hierarchyPointNode.y
+  //temp.hierarchyPointNode.x
   return (
     <div className="w-full h-full p-4">
       <div
@@ -201,7 +258,7 @@ const RenderTreePanel: React.FC<RenderTreePanelProps> = ({
           data={visibleTree}
           orientation="vertical"
           zoomable
-          translate={{ x: 300, y: 100 }}
+          translate={translate}   // ← 用 state 控制
           onNodeClick={(nodeData: any) => {
             const id = nodeData.data.id as string;
             const name = nodeData.data.name as string;
@@ -210,6 +267,7 @@ const RenderTreePanel: React.FC<RenderTreePanelProps> = ({
           renderCustomNodeElement={renderNode}
           enableLegacyTransitions={false}
         />
+
       </div>
     </div>
   );

@@ -56,7 +56,22 @@ const [tree, setTree] = useState<TreeNode>(initialTreeData)
 const [selectedNodeId, setSelectedNodeId] = useState<string>('')   // 未選取時為空字串/你也可用 null
 const [selectedNodeName, setSelectedNodeName] = useState<string>('')
 
-//接收其他 page 的"插入子樹指令
+//搜尋功能
+const [highlightIndex, setHighlightIndex] = useState<number>(-1);
+const [showSearch, setShowSearch] = useState(false);
+const [searchQuery, setSearchQuery] = useState('');
+function searchNodes(node: TreeNode, query: string): {id:string, name:string}[] {
+  let results: {id:string, name:string}[] = [];
+  if (node.name.toLowerCase().includes(query.toLowerCase())) {
+    results.push({ id: node.id!, name: node.name });
+  }
+  if (node.children) {
+    node.children.forEach(c => results = results.concat(searchNodes(c, query)));
+  }
+  return results;
+}
+
+
 
 //快照功能狀態
 const [treeHistory, setTreeHistory] = useState(() => createHistory(initialTreeData))
@@ -155,7 +170,7 @@ function handleRedo() {
             treeClientRef.current?.appendChildren(selectedNodeId, name.trim());
           }          
         }
-        break;
+        break;        
 
       case 'e': // 編輯 node 資訊快捷鍵
         if (selectedNodeId) {
@@ -163,6 +178,12 @@ function handleRedo() {
           setShowEdit(true);
         }
         break;
+
+      case 'f': // 搜尋節點
+      e.preventDefault();
+      setShowSearch(true);
+      break;
+
 
       case 'd': // 刪除
         if (selectedNodeId && selectedNodeId !== 'root') {
@@ -418,8 +439,78 @@ function handleRedo() {
   treeClientRef={treeClientRef}
   onClose={() => setShowEdit(false)}
 />
+{showSearch && (
+  <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="bg-white p-4 rounded shadow w-96 text-black">
+      <input
+        className="w-full border p-2 mb-2"
+        placeholder="輸入節點名稱片段"
+        autoFocus
+        value={searchQuery}
+        onChange={(e) => {
+          setSearchQuery(e.target.value);
+          setHighlightIndex(-1); // 重置選中狀態
+        }}
+        onKeyDown={(e) => {
+          const results = searchNodes(tree, searchQuery);
+          if (!results.length) return;
+
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setHighlightIndex((prev) =>
+              prev < results.length - 1 ? prev + 1 : 0
+            );
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setHighlightIndex((prev) =>
+              prev > 0 ? prev - 1 : results.length - 1
+            );
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (highlightIndex >= 0) {
+              const target = results[highlightIndex];
+              setSelectedNodeId(target.id);
+              setSelectedNodeName(target.name);
+              setShowSearch(false);
+              setSearchQuery("");
+              setHighlightIndex(-1);
+            }
+          }
+        }}
+      />
+
+      <div className="max-h-60 overflow-y-auto">
+        {searchQuery &&
+          searchNodes(tree, searchQuery).map((n, idx) => (
+            <div
+              key={n.id}
+              className={`p-2 cursor-pointer text-black ${
+                idx === highlightIndex ? "bg-blue-200" : "hover:bg-blue-100"
+              }`}
+              onClick={() => {
+                setSelectedNodeId(n.id);
+                setSelectedNodeName(n.name);
+                setShowSearch(false);
+                setSearchQuery("");
+                setHighlightIndex(-1);
+              }}
+            >
+              {n.name}
+            </div>
+          ))}
+      </div>
+      <button
+        className="mt-2 px-4 py-1 bg-gray-300"
+        onClick={() => setShowSearch(false)}
+      >
+        關閉
+      </button>
+    </div>
+  </div>
+)}
 
 </div>
+
 )
 
 

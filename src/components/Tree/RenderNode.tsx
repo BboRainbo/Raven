@@ -6,7 +6,7 @@ interface RenderNodeProps {
   nodeDatum: TreeNode
   selectedId: string | null
   onSelect: (id: string, name: string) => void
-  onMouseEnter: (id: string) => void
+  onMouseEnter: () => void
 }
 
 const RenderNode: React.FC<RenderNodeProps> = ({
@@ -27,7 +27,7 @@ const RenderNode: React.FC<RenderNodeProps> = ({
 
 
   return (
-<g
+<g data-id={nodeDatum.id}
 
   data-location = "720,190"
   onClick={handleClick}
