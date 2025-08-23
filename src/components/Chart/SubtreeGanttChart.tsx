@@ -219,9 +219,16 @@ export default function SubtreeGanttChart({
           return (
             <div key={it.id} className="relative border-t first:border-t-0" style={{ height: 44 }}>
               {/* 左側名稱欄 */}
-              <div className="absolute left-0 top-0 h-full flex items-center pl-2 pr-1 text-sm w-48 bg-white/70 backdrop-blur z-10 text-black">
+              <div
+                className="absolute left-0 top-0 h-full flex items-center pl-2 pr-1 text-sm w-48 bg-white/70 backdrop-blur z-10 text-black cursor-pointer hover:bg-blue-100"
+                onClick={() => onBarClick?.(it.id, it.name)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onBarClick?.(it.id, it.name)}
+              >
                 <span className="truncate" title={it.name}>{it.name}</span>
               </div>
+
 
               {/* 右側走道 */}
               <div className="absolute inset-0 ml-48">
@@ -232,20 +239,18 @@ export default function SubtreeGanttChart({
                 })}
 
                 {/* 外層時程條 */}
-<div
-  className="absolute top-2 bottom-2 rounded cursor-pointer hover:ring-2 hover:ring-black/30 transition"
-  style={{
-    left: `${left}%`,
-    width: `${Math.max(0.5, width)}%`,
-    background: palette.fill,
-    border: `${borderStyle} ${palette.border}`,
-  }}
-  role="button"
-  tabIndex={0}
-  onClick={() => onBarClick?.(it.id, it.name)}   // ← 點擊回呼
-  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onBarClick?.(it.id, it.name)}
-  title={`${it.name}: ${it.start.toISOString().slice(0,10)} → ${it.end.toISOString().slice(0,10)}（進度 ${it.progress}%）`}
->
+                <div
+                  className="absolute top-2 bottom-2 rounded cursor-pointer hover:ring-2 hover:ring-black/30 transition"
+                  style={{
+                    left: `${left}%`,
+                    width: `${Math.max(0.5, width)}%`,
+                    background: palette.fill,
+                    border: `${borderStyle} ${palette.border}`,
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  title={`${it.name}: ${it.start.toISOString().slice(0,10)} → ${it.end.toISOString().slice(0,10)}（進度 ${it.progress}%）`}
+                >
                   {/* 內層完成進度條（相對父層 %） */}
                   <div
                     className="absolute top-[18%] bottom-[18%] rounded-sm"

@@ -1,5 +1,7 @@
 'use client'
 //接收router跳轉時傳遞資訊
+import SubtreeGanttChart from '@/components/Chart/SubtreeGanttChart'
+import SubtreeRadarChart from '@/components/Chart/SubtreeRadarChart'
 import { useSearchParams } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 import RenderTreePanel from '../../components/RenderTreePanel'
@@ -236,7 +238,7 @@ function handleRedo() {
   return (
     <div className="flex h-screen">
       {/* 左半：工具列 + Tree */}
-      <div className="w-1/2 h-full p-4 flex flex-col">
+      <div className="w-2/3 h-full p-4 flex flex-col">
         {/* 工具列（對應 TreeClient 受控 API） */}
         <div className="flex flex-wrap items-center gap-2 mb-2">
 <button
@@ -387,18 +389,31 @@ function handleRedo() {
         <TreeClient ref={treeClientRef} value={tree} onChange={handleTreeChange} />
       </div>
 
-      {/* 右半：AI 討論區 */}
-      <div className="w-1/2 h-full p-4 bg-gray-900 text-white overflow-auto">
-        {selectedNodeId && (
-          <AIPanel
-            selectedNodeName={selectedNodeName}
-            onAddSubtasks={(tasks) => {
-              if (!selectedNodeId || tasks.length === 0) return
-              // ✅ 直接呼叫受控 API，多載支援單個/多個
-              treeClientRef.current?.appendChildren(selectedNodeId, tasks)
+      {/* 右半：雷達 + 甘特圖 */}
+      <div className="w-1/3 h-full flex flex-col bg-white">
+        {/* 上半：雷達圖 */}
+        <div className="h-1/2 border-b border-gray-300 p-2">
+          <SubtreeRadarChart
+            node={regionNode}
+            title="子樹雷達圖"
+            mode="childrenLeafAvg"   // 依需求可切換 "children" | "depth"
+            depth={2}
+            height="100%"
+          />
+        </div>
+
+        {/* 下半：甘特圖 */}
+        <div className="h-1/2 p-2">
+          <SubtreeGanttChart
+            node={regionNode}
+            title="子樹甘特圖"
+            height="100%"
+            onBarClick={(id, name) => {
+              setSelectedNodeId(id);
+              setSelectedNodeName(name);
             }}
           />
-        )}
+        </div>
       </div>
 
       {/* 右側滑出子頁（Drawer） */}
@@ -508,17 +523,6 @@ function handleRedo() {
     </div>
   </div>
 )}
-
 </div>
-
 )
-
-
-  
 }
-
-//評分頁面 Drawer
-
-
-
-
