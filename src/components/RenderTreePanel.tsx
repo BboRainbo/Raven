@@ -146,7 +146,6 @@ const renderNode = (rd: any) => {
       nodeDatum={rd.nodeDatum}
       selectedId={selectedId}
       onSelect={(id, name) => onNodeSelect(id, name)}
-      onMouseEnter={() => {}}
     />
   );
 };

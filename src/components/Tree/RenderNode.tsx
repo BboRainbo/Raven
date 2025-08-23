@@ -6,14 +6,12 @@ interface RenderNodeProps {
   nodeDatum: TreeNode
   selectedId: string | null
   onSelect: (id: string, name: string) => void
-  onMouseEnter: () => void
 }
 
 const RenderNode: React.FC<RenderNodeProps> = ({
   nodeDatum,
   selectedId,
   onSelect,
-  onMouseEnter,          // ✅ 加上這行
 }) => {
 
   const isSelected = nodeDatum.id === selectedId
@@ -31,8 +29,6 @@ const RenderNode: React.FC<RenderNodeProps> = ({
 
   data-location = "720,190"
   onClick={handleClick}
-  onMouseEnter={() => onMouseEnter(nodeDatum.id)}
-  onMouseDown={() => {}}
   style={{ cursor: 'grab', pointerEvents: 'visiblePainted' }}
   data-node-id={nodeDatum.id}
 >
@@ -43,10 +39,6 @@ const RenderNode: React.FC<RenderNodeProps> = ({
         fill={isSelected ? '#dbdb06ff' : '#ffffffff'}
         stroke="#000000ff"
         strokeWidth={2}
-        onMouseDown={(e) => {
-        e.stopPropagation();                      // ✅ 避免畫布拖曳事件觸發  
-        }}
-        onMouseEnter={() => onMouseEnter(nodeDatum.id)}
         pointerEvents="all"
       />
       <rect
@@ -73,8 +65,6 @@ const RenderNode: React.FC<RenderNodeProps> = ({
         y={offset.y}
         fontFamily="Arial, sans-serif"
         fontSize={16}
-        onMouseEnter={() => onMouseEnter(nodeDatum.id)}
-        onMouseDown={()=>{}}
         pointerEvents="all" // ✅ 改成 all，讓它真的能接到事件
       >
         {nodeDatum.name} {progress}%
