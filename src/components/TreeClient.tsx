@@ -43,7 +43,7 @@ const TreeClient = forwardRef<TreeClientHandle, TreeClientProps>(
       if (node.children) {
         node._children = node.children;
         node._children.forEach(collapseNode);
-        node.children = [];
+        delete node.children;
       }
     };
 
@@ -51,7 +51,7 @@ const TreeClient = forwardRef<TreeClientHandle, TreeClientProps>(
       if (node._children) {
         node.children = node._children;
         node.children.forEach(expandNode);
-        node._children = [];
+        delete node._children;
       }
     };
     // 只保留「不影響外部資料真相」的內部狀態，例如剪貼簿
@@ -168,10 +168,10 @@ const insertSubtree = (parentId: string, subtree: TreeNode) => {
       updateNode,
       getSubtree: (nodeId) => findNodeById(value, nodeId) ?? null,
       getTree: () => value,
+
       collapseSubtree: (id: string) => {
-        const clone = structuredClone(value);     // ✅ 從父層傳下來的 value
-        const target = findNodeById(clone, id);
-        
+      const clone = structuredClone(value);     // ✅ 從父層傳下來的 value
+      const target = findNodeById(clone, id);        
         if (target) {
           target.collapsed = true;
           collapseNode(target);
