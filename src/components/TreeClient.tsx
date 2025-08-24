@@ -7,7 +7,10 @@ import { useState, useImperativeHandle, forwardRef } from 'react';
 //TODO:為了支援 utils 多載的定義 放在這裡好嗎?
 type ChildInput = string | TreeNode;
 
+
+
 // ===== Public interface (給父層呼叫的命令式 API，不修改可見資料流) =====
+// 這段僅僅是暴露API格式
 
 export interface TreeClientHandle {
   // ✅ 多載：支援單個或多個子節點
@@ -22,6 +25,9 @@ export interface TreeClientHandle {
   setNodePriority: (nodeId: string, value: number) => void;
   getSubtree: (nodeId: string) => TreeNode | null;
   getTree: () => TreeNode;
+  collapseSubtree: (id: string) => void;
+  expandSubtree: (id: string) => void;
+  toggleSubtree: (id: string) => void;
 }
 
 
@@ -33,7 +39,21 @@ interface TreeClientProps {
 
 const TreeClient = forwardRef<TreeClientHandle, TreeClientProps>(
   ({ value, onChange }, ref) => {    
-    
+        const collapseNode = (node: TreeNode) => {
+      if (node.children) {
+        node._children = node.children;
+        node._children.forEach(collapseNode);
+        node.children = [];
+      }
+    };
+
+    const expandNode = (node: TreeNode) => {
+      if (node._children) {
+        node.children = node._children;
+        node.children.forEach(expandNode);
+        node._children = [];
+      }
+    };
     // 只保留「不影響外部資料真相」的內部狀態，例如剪貼簿
     const [clipboardNode, setClipboardNode] = useState<TreeNode | null>(null);
     // 受控：任何資料變更只呼叫 onChange
@@ -137,7 +157,7 @@ const insertSubtree = (parentId: string, subtree: TreeNode) => {
 
     // ---- 暴露命令式 API（僅包裝上述純函式，不繞過受控資料流）----
     useImperativeHandle(ref, () => ({
-      appendChildren,              // ← 暴露多載方法
+      appendChildren,              
       rename,
       remove,
       cut,
@@ -148,7 +168,42 @@ const insertSubtree = (parentId: string, subtree: TreeNode) => {
       updateNode,
       getSubtree: (nodeId) => findNodeById(value, nodeId) ?? null,
       getTree: () => value,
-    }));
+      collapseSubtree: (id: string) => {
+        const clone = structuredClone(value);     // ✅ 從父層傳下來的 value
+        const target = findNodeById(clone, id);
+        
+        if (target) {
+          target.collapsed = true;
+          collapseNode(target);
+          emit(clone);                            // ✅ 交回父層，更新狀態
+        }
+
+      },
+      expandSubtree: (id: string) => {
+        const clone = structuredClone(value);
+        const target = findNodeById(clone, id);
+        if (target) {
+          target.collapsed = false;
+          expandNode(target);
+          emit(clone);
+        }
+      },
+
+      toggleSubtree: (id: string) => {
+        const clone = structuredClone(value)
+        const target = findNodeById(clone, id)
+        if (target) {
+          if (target.children) {
+            // 如果目前是展開的 → 收合
+            collapseNode(target)
+          } else if (target._children) {
+            // 如果目前是收合的 → 展開
+            expandNode(target)
+          }
+          emit(clone)
+        }
+        }
+    }))
 
 
     // 這個元件不負責渲染 UI，只負責資料編輯命令

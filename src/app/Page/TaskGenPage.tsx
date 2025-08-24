@@ -8,8 +8,10 @@ import RenderTreePanel from '../../components/RenderTreePanel'
 import AIPanel from '../../components/AIPanel'
 import React, { useState, useRef, useMemo, useEffect } from 'react'
 import type { TreeNode } from '@/type/Tree'
+
 import TreeClient, { type TreeClientHandle } from '../../components/TreeClient'
 import { findNodeById } from '@/utils/TreeUtils/findNodeById'
+
 
 //Import History Snapshot Utils
 import { createHistory, pushHistory, undo, redo, current } from '@/utils/TreeUtils/History/historyManager'
@@ -21,7 +23,10 @@ import RadarDrawer from '../../components/Drawer/RadarDrawer'
 import GanttDrawer from '../../components/Drawer/GanttDrawer'
 import NodeEditDrawer from '../../components/Drawer/NodeEditorDrawer'
 
-export default function TaskGenPage() {
+//引入收合
+import { expandAllChildren } from '@/utils/TreeUtils/expandtree'
+
+export default function TaskGenPage() {  
 
 const treeContainerRef = useRef<HTMLDivElement>(null);
 
@@ -73,8 +78,6 @@ function searchNodes(node: TreeNode, query: string): {id:string, name:string}[] 
   }
   return results;
 }
-
-
 
 //快照功能狀態
 const [treeHistory, setTreeHistory] = useState(() => createHistory(initialTreeData))
@@ -158,6 +161,17 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
       }
       break;
 
+
+
+    case 'c': // 收合/展開切換
+      if (selectedNodeId) {
+        treeClientRef.current?.toggleSubtree(selectedNodeId)
+      }
+      break;
+
+
+
+
     case 'e': // 編輯
       if (selectedNodeId) {
         setEditingNodeId(selectedNodeId);
@@ -211,10 +225,11 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
 
 
   // ✅ 依最新 tree 和選取節點計算「活的子樹」
-  const regionNode = useMemo(() => {
-    if (!tree || !selectedNodeId) return null
-    return findNodeById(tree, selectedNodeId) ?? null
-  }, [tree, selectedNodeId])
+const regionNode = useMemo(() => {
+  if (!tree || !selectedNodeId) return null
+  const raw = findNodeById(tree, selectedNodeId)
+  return raw ? expandAllChildren(raw) : null
+}, [tree, selectedNodeId])
 
   // ✅ 工具列可用性
   const canOperate = !!selectedNodeId
@@ -339,7 +354,19 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
           >
             與AI討論子任務
           </button>
+          <button
+            disabled={!selectedNodeId}
+            onClick={() => selectedNodeId && treeClientRef.current?.collapseSubtree(selectedNodeId)}
+          >
+            收合此節點以下 (C)
+          </button>
 
+          <button
+            disabled={!selectedNodeId}
+            onClick={() => selectedNodeId && treeClientRef.current?.expandSubtree(selectedNodeId)}
+          >
+            展開此節點以下
+          </button>
 
 
           <button

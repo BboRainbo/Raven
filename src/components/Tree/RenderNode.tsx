@@ -13,7 +13,6 @@ const RenderNode: React.FC<RenderNodeProps> = ({
   selectedId,
   onSelect,
 }) => {
-
   const isSelected = nodeDatum.id === selectedId
   const offset = nodeDatum.textOffset ?? { x: 15, y: 5 }
   const progress = nodeDatum.progress ?? 0
@@ -23,17 +22,14 @@ const RenderNode: React.FC<RenderNodeProps> = ({
     onSelect(nodeDatum.id, nodeDatum.name)
   }
 
-
   return (
-<g data-id={nodeDatum.id}
-
-  data-location = "720,190"
-  onClick={handleClick}
-  style={{ cursor: 'grab', pointerEvents: 'visiblePainted' }}
-  data-node-id={nodeDatum.id}
->
-
-
+    <g
+      data-id={nodeDatum.id}
+      onClick={handleClick}
+      style={{ cursor: 'grab', pointerEvents: 'visiblePainted' }}
+      data-node-id={nodeDatum.id}
+    >
+      {/* 節點圓圈 */}
       <circle
         r={10}
         fill={isSelected ? '#dbdb06ff' : '#ffffffff'}
@@ -41,6 +37,8 @@ const RenderNode: React.FC<RenderNodeProps> = ({
         strokeWidth={2}
         pointerEvents="all"
       />
+
+      {/* 進度條背景 */}
       <rect
         x={-40}
         y={-30}
@@ -50,6 +48,7 @@ const RenderNode: React.FC<RenderNodeProps> = ({
         rx={4}
         ry={4}
       />
+      {/* 進度條前景 */}
       <rect
         x={-40}
         y={-30}
@@ -59,13 +58,29 @@ const RenderNode: React.FC<RenderNodeProps> = ({
         rx={4}
         ry={4}
       />
+
+      {/* 收合/展開按鈕 */}
+      {(nodeDatum.children || nodeDatum._children) && (
+        <g transform="translate(-20,0)" style={{ cursor: 'pointer' }}>
+          <circle r={7} fill="#f0f0f0" stroke="#555" />
+          {nodeDatum._children ? (
+            // ▶ 收合
+            <polygon points="-2,-3 3,0 -2,3" fill="black" />
+          ) : (
+            // ▼ 展開
+            <polygon points="-3,-2 3,-2 0,3" fill="black" />
+          )}
+        </g>
+      )}
+
+      {/* 節點名稱與進度 */}
       <text
         fill="#000"
         x={offset.x}
         y={offset.y}
         fontFamily="Arial, sans-serif"
-        fontSize={16}
-        pointerEvents="all" // ✅ 改成 all，讓它真的能接到事件
+        fontSize={14}
+        pointerEvents="all"
       >
         {nodeDatum.name} {progress}%
       </text>

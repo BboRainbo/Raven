@@ -72,7 +72,7 @@ useEffect(() => {
     .attr("transform", `translate(${tx},${ty}) scale(${s})`);
 
   // 注意：這裡就不要再呼叫 setTranslate 了，否則會被 React 覆蓋
-}, [selectedId, dimensions]);
+}, [selectedId, dimensions,JSON.stringify(treeData)]);
 
 
   // 2) 監聽拖放事件（掛在畫布容器）
@@ -228,7 +228,6 @@ const renderNode = (rd: any) => {
   //2.看到了CustomNodeElementProps
   //3.嘗試定義一個變數為這
 
-
   //let temp:CustomNodeElementProps;
   //temp.hierarchyPointNode.x
   return (
@@ -254,7 +253,7 @@ const renderNode = (rd: any) => {
           </div>
         )}
         <Tree
-          data={visibleTree}
+          data={treeData}
           orientation="vertical"
           zoomable
           translate={translate}   // ← 用 state 控制
@@ -264,7 +263,9 @@ const renderNode = (rd: any) => {
             onNodeSelect(id, name);
           }}
           renderCustomNodeElement={renderNode}
-          enableLegacyTransitions={false}
+          enableLegacyTransitions={true}
+          transitionDuration={500}    // ← 加上這個 (毫秒)
+
         />
 
       </div>
