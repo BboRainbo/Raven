@@ -23,6 +23,7 @@ import NodeEditDrawer from '../../components/Drawer/NodeEditorDrawer'
 
 export default function TaskGenPage() {
 
+const treeContainerRef = useRef<HTMLDivElement>(null);
 
 const initialTreeData: TreeNode = {
   id: 'root',
@@ -130,92 +131,83 @@ function handleRedo() {
 
   //快捷鍵設定
   //Undo/Redo快捷鍵
-  useEffect(() => {
-  function handleKeyDown(e: KeyboardEvent) {
-    if (e.ctrlKey && e.key.toLowerCase() === 'z') {
-      e.preventDefault()
-      handleUndo()
-    }
-    if (e.ctrlKey && e.key.toLowerCase() === 'y') {
-      e.preventDefault()
-      handleRedo()
-    }
-  }
-  window.addEventListener('keydown', handleKeyDown)
-  return () => window.removeEventListener('keydown', handleKeyDown)
-}, [treeHistory])
-  useEffect(() => {
-  function handleKeyDown(e: KeyboardEvent) {
-    // 如果焦點在輸入框，不觸發快捷鍵
-    if (
-      document.activeElement?.tagName === 'INPUT' ||
-      document.activeElement?.tagName === 'TEXTAREA'
-    ) {
-      return;
-    }
-    const key = e.key.toLowerCase();
+const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
 
-    switch (key) {
-      case 'r': // 雷達圖
-        if (selectedNodeId) setShowRadar(true);
-        break;
-      case 'g': // 甘特圖
-        if (selectedNodeId) setShowGantt(true);
-        break;
-      case 's': // 評分
-        if (selectedNodeId) setShowEvaluate(true);
-        break;
-      case 'a': // 新增  TODO:我為了增加快捷鍵但需要重複定義呼叫函數?
-        if (selectedNodeId) {
-          const name = window.prompt('輸入任務名稱', '');
-          if (name && name.trim()) {
-            treeClientRef.current?.appendChildren(selectedNodeId, name.trim());
-          }          
+  const key = e.key.toLowerCase();
+
+  switch (key) {
+    case 'r': // 開啟雷達圖
+      if (selectedNodeId) setShowRadar(true);
+      break;
+
+    case 'g': // 開啟甘特圖
+      if (selectedNodeId) setShowGantt(true);
+      break;
+
+    case 's': // 評分
+      if (selectedNodeId) setShowEvaluate(true);
+      break;
+
+    case 'a': // 新增子節點
+      if (selectedNodeId) {
+        const name = window.prompt('輸入任務名稱', '');
+        if (name?.trim()) {
+          treeClientRef.current?.appendChildren(selectedNodeId, name.trim());
         }
-        break;        
+      }
+      break;
 
-      case 'e': // 編輯 node 資訊快捷鍵
-        if (selectedNodeId) {
-          setEditingNodeId(selectedNodeId);
-          setShowEdit(true);
-        }
-        break;
+    case 'e': // 編輯
+      if (selectedNodeId) {
+        setEditingNodeId(selectedNodeId);
+        setShowEdit(true);
+      }
+      break;
 
-      case 'f': // 搜尋節點
+    case 'f': // 搜尋
       e.preventDefault();
       setShowSearch(true);
       break;
 
+    case 'd': // 刪除
+      if (selectedNodeId && selectedNodeId !== 'root') {
+        treeClientRef.current?.remove(selectedNodeId);
+      }
+      break;
 
-      case 'd': // 刪除
-        if (selectedNodeId && selectedNodeId !== 'root') {
-          treeClientRef.current?.remove(selectedNodeId);
-        }
-        break;
-      case 'x':
-        if (e.ctrlKey && selectedNodeId) {
-          e.preventDefault();
-          treeClientRef.current?.cut(selectedNodeId);
-        }
-        break;
+    case 'x': // 剪下
+      if (e.ctrlKey && selectedNodeId) {
+        e.preventDefault();
+        treeClientRef.current?.cut(selectedNodeId);
+      }
+      break;
 
-      // === 新增貼上快捷鍵 (Ctrl+V) ===
-      case 'v':
-        if (e.ctrlKey && selectedNodeId) {
-          e.preventDefault();
-          treeClientRef.current?.paste(selectedNodeId);
-        }
-        break;
-      default:
-        break;               
-    }
+    case 'v': // 貼上
+      if (e.ctrlKey && selectedNodeId) {
+        e.preventDefault();
+        treeClientRef.current?.paste(selectedNodeId);
+      }
+      break;
+
+    case 'z': // Undo
+      if (e.ctrlKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      break;
+
+    case 'y': // Redo
+      if (e.ctrlKey) {
+        e.preventDefault();
+        handleRedo();
+      }
+      break;
   }
+};
 
-  window.addEventListener('keydown', handleKeyDown);
-  return () => {
-    window.removeEventListener('keydown', handleKeyDown);
-  };
-}, [selectedNodeId]);
+
+
 
 
   // ✅ 依最新 tree 和選取節點計算「活的子樹」
@@ -241,18 +233,18 @@ function handleRedo() {
       <div className="w-2/3 h-full p-4 flex flex-col">
         {/* 工具列（對應 TreeClient 受控 API） */}
         <div className="flex flex-wrap items-center gap-2 mb-2">
-<button
-  onClick={() => {
-    if (!canOperate) return
-    const name = window.prompt('輸入任務名稱', '')
-    if (name && name.trim()) {
-      treeClientRef.current?.appendChildren(selectedNodeId, name.trim())
-    }
-    // 若取消或空字串：不動作
-  }}
-  className="bg-green-500 text-white px-2 py-1 disabled:opacity-50"
-  disabled={!canOperate}
->
+          <button
+            onClick={() => {
+              if (!canOperate) return
+              const name = window.prompt('輸入任務名稱', '')
+              if (name && name.trim()) {
+                treeClientRef.current?.appendChildren(selectedNodeId, name.trim())
+              }
+              // 若取消或空字串：不動作
+            }}
+            className="bg-green-500 text-white px-2 py-1 disabled:opacity-50"
+            disabled={!canOperate}
+          >
           新增(a)
           </button>
 
@@ -363,7 +355,12 @@ function handleRedo() {
         </div>
 
         {/* Tree 視圖 */}
-        <div className="flex-1 min-h-0">
+<div
+  ref={treeContainerRef}
+  tabIndex={0} 
+  className="flex-1 min-h-0 outline-none"
+  onKeyDownCapture={handleKeyDown} // 用 Capture 確保事件在冒泡前就吃到
+>
           <RenderTreePanel
             treeData={tree}
             selectedId={selectedNodeId}
@@ -398,7 +395,7 @@ function handleRedo() {
             title="子樹雷達圖"
             mode="childrenLeafAvg"   // 依需求可切換 "children" | "depth"
             depth={2}
-            height="100%"
+            height="100%"            
           />
         </div>
 
@@ -408,9 +405,18 @@ function handleRedo() {
             node={regionNode}
             title="子樹甘特圖"
             height="100%"
+            
             onBarClick={(id, name) => {
+                            console.log("回到父層");
               setSelectedNodeId(id);
               setSelectedNodeName(name);
+              treeContainerRef.current?.focus();
+            }}
+            onBack={(parentId) => {
+              console.log("回到父層:", parentId);
+              if (!parentId) return;
+              setSelectedNodeId(parentId);
+              treeContainerRef.current?.focus();
             }}
           />
         </div>
@@ -418,25 +424,7 @@ function handleRedo() {
 
       {/* 右側滑出子頁（Drawer） */}
 
-<RadarDrawer
-  open={showRadar}
-  node={regionNode}
-  onClose={() => setShowRadar(false)}
-  onPointClick={(id, name) => {
-    setSelectedNodeId(id);
-    setSelectedNodeName(name);
-  }}
-/>
 
-<GanttDrawer
-  open={showGantt}
-  node={regionNode}
-  onClose={() => setShowGantt(false)}
-  onBarClick={(id, name) => {
-    setSelectedNodeId(id);
-    setSelectedNodeName(name);
-  }}
-/>
 <EvaluationDrawer
   open={showEvaluate}
   onClose={() => setShowEvaluate(false)}
@@ -445,8 +433,6 @@ function handleRedo() {
     console.log("submit", text, code);
   }}
 />
-
-
 
 <NodeEditDrawer
   open={showEdit}

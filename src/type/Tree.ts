@@ -11,6 +11,7 @@ export interface TreeNode {
   textOffset?: { x: number; y: number }
   position?: { x: number; y: number }   // ✅ 專門存 SVG 上的座標
   children?: TreeNode[]
+  parentId?: string | null; // root = null
 
   //timeLine
   start? : string

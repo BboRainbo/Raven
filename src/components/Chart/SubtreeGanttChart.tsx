@@ -11,7 +11,8 @@ export interface SubtreeGanttChartProps {
   endKey?: string;
   progressKey?: string;
   expectedSlack?: number;
-  onBarClick?: (id: string, name: string) => void; // ← 新增回傳點選事件
+  onBarClick?: (id: string, name: string) => void;
+  onBack?: (parentId: string) => void; // 🔑 新增
 }
 
 
@@ -95,6 +96,7 @@ export default function SubtreeGanttChart({
   progressKey = 'progress',
   expectedSlack = 0, // 依你的需求：嚴格對比，不加緩衝
   onBarClick,
+  onBack, 
 }: SubtreeGanttChartProps) {
   // 今天 00:00（避免時區小時影響）
   const today = useMemo(() => {
@@ -177,15 +179,29 @@ export default function SubtreeGanttChart({
     text:    '#0B1220',
   };
 
-  return (
-    <div className="w-full">
-      {/* 標題 */}
-      <div className="mb-3">
+return (
+  <div className="w-full">
+    {/* 標題 */}
+    <div className="mb-3 flex items-center justify-between">
+      <div>
         <h3 className="text-sm font-semibold">{title}</h3>
         <p className="text-xs text-neutral-600">
           父節點：<span className="font-medium">{node.name}</span>（僅顯示直屬子節點）
         </p>
       </div>
+
+      {/* 🔙 回到父層 */}
+      {node.parentId && (
+        <button
+          className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
+          onClick={() => {
+            if (node.parentId) onBack?.(node.parentId);
+            }}
+        >
+          回到父層
+        </button>
+      )}
+    </div>
 
       {/* 時間軸頭 */}
       <div className="w-full border border-black rounded-t bg-gray-50">

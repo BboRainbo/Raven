@@ -1,7 +1,16 @@
 import { TreeNode } from '@/type/Tree'
 import { pushHistory } from '@/utils/TreeUtils/History/historyManager'
 
-//TODO:之後匯出/匯入邏輯記得要移到後端
+// 🔑 Migration: 自動補上 parentId
+function addParentIds(node: TreeNode, parentId: string | null = null): TreeNode {
+  const withParent: TreeNode = { ...node, parentId };
+
+  if (node.children && node.children.length > 0) {
+    withParent.children = node.children.map(c => addParentIds(c, node.id));
+  }
+  return withParent;
+}
+
 /**
  * 匯出樹：會彈出 prompt 輸入檔名
  */
@@ -18,7 +27,7 @@ export function exportTree(tree: TreeNode, defaultName = 'tree-data.json') {
 }
 
 /**
- * 匯入樹：直接用檔案選擇器選檔
+ * 匯入樹：直接用檔案選擇器選檔，並自動補 parentId
  */
 export function importTree(
   onImport: (tree: TreeNode) => void,
@@ -35,8 +44,12 @@ export function importTree(
     reader.onload = (e) => {
       try {
         const json = JSON.parse(e.target?.result as string)
-        onImport(json)
-        if (pushHistoryFn) pushHistoryFn(json)
+
+        // ✅ 自動補上 parentId
+        const upgraded = addParentIds(json)
+
+        onImport(upgraded)
+        if (pushHistoryFn) pushHistoryFn(upgraded)
       } catch {
         alert('匯入失敗：檔案格式錯誤')
       }
