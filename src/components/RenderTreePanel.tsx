@@ -8,7 +8,7 @@ import * as d3 from "d3";
 interface RenderTreePanelProps {
   treeData: TreeNode;
   selectedId: string | null;
-  onNodeSelect: (id: string, name: string) => void;
+  onNodeSelect: (id: string, name: string,node:TreeNode) => void;
   onImportTree?: (tree: TreeNode) => void; // 監聽拖移JSON事件
 }
 
@@ -24,9 +24,8 @@ const RenderTreePanel: React.FC<RenderTreePanelProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
 
-  //監聽畫布大小
+  //監聽畫布大小，調整鎖定設定
   const [dimensions, setDimensions] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
-
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -41,7 +40,6 @@ const RenderTreePanel: React.FC<RenderTreePanelProps> = ({
 
     return () => observer.disconnect();
   }, []);
-
   //計算畫布中心
     useEffect(() => {
     if (dimensions.width === 0 || dimensions.height === 0) return;
@@ -50,32 +48,29 @@ const RenderTreePanel: React.FC<RenderTreePanelProps> = ({
       y: dimensions.height / 3,
     });
   }, [dimensions]);
-
     //設定副作用 => selected ID 改變時，儲存座標，呼叫 setTranslate
-useEffect(() => {
-  if (!selectedId) return;
-  const pos = nodePosRef.current.get(selectedId);
-  if (!pos || dimensions.width === 0 || dimensions.height === 0) return;
+  useEffect(() => {
+    if (!selectedId) return;
+    const pos = nodePosRef.current.get(selectedId);
+    if (!pos || dimensions.width === 0 || dimensions.height === 0) return;
 
-  const { x: nx, y: ny } = pos;
-  const cx = dimensions.width / 2;
-  const cy = dimensions.height / 3;
-  const s = 1;
+    const { x: nx, y: ny } = pos;
+    const cx = dimensions.width / 2;
+    const cy = dimensions.height / 3;
+    const s = 1;
 
-  const tx = cx - nx * s;
-  const ty = cy - ny * s;
+    const tx = cx - nx * s;
+    const ty = cy - ny * s;
 
-  // 用 d3 transition 平滑移動外層 <g>
-  d3.select(".rd3t-g")
-    .transition()
-    .duration(750)      // 動畫時間 (ms)
-    .attr("transform", `translate(${tx},${ty}) scale(${s})`);
+    // 用 d3 transition 平滑移動外層 <g>
+    d3.select(".rd3t-g")
+      .transition()
+      .duration(750)      // 動畫時間 (ms)
+      .attr("transform", `translate(${tx},${ty}) scale(${s})`);
 
-  // 注意：這裡就不要再呼叫 setTranslate 了，否則會被 React 覆蓋
-}, [selectedId, dimensions,JSON.stringify(treeData)]);
-
-
-  // 2) 監聽拖放事件（掛在畫布容器）
+    // 注意：這裡就不要再呼叫 setTranslate 了，否則會被 React 覆蓋
+  }, [selectedId, dimensions,JSON.stringify(treeData)]);
+  //監聽拖放事件（掛在畫布容器） => 新增拖放JSON 檔案功能 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -145,12 +140,30 @@ const renderNode = (rd: any) => {
     <RenderNode
       nodeDatum={rd.nodeDatum}
       selectedId={selectedId}
-      onSelect={(id, name) => onNodeSelect(id, name)}
+      onSelect={(id, name,node) =>{
+        console.log(rd.nodeDatum)
+      // node._collapsed = !node._collapsed;
+
+        onNodeSelect(id, name,node)
+      } }
     />
   );
 };
 
-  const visibleTree = treeData
+  // 遞迴過濾：如果節點被收合，就清空 children
+const applyCollapse = (node: TreeNode): TreeNode => {
+  if (node._collapsed) {
+    return { ...node, children: [] };  // 收合狀態 → 清空 children
+  }
+  return {
+    ...node,
+    children: node.children?.map(applyCollapse) ?? []
+  };
+};
+
+// 建立可見樹 (每次 treeData 改變都重新計算)
+const visibleTree = useMemo(() => applyCollapse(treeData), [treeData]);
+
 
   /** 建索引：id -> { parentId, childrenIds, name } */
   type IndexNode = { id: string; name: string; parentId: string | null; childrenIds: string[] };
@@ -174,7 +187,7 @@ const renderNode = (rd: any) => {
   useEffect(() => {
     if (!selectedId && rootId) {
       const n = byId.get(rootId)!;
-      onNodeSelect(rootId, n.name);
+      onNodeSelect(rootId, n.name,n);
     }
   }, [selectedId, rootId, byId, onNodeSelect]);
 
@@ -204,12 +217,15 @@ const renderNode = (rd: any) => {
 
       if (targetId) {
         const t = byId.get(targetId);
-        if (t) onNodeSelect(targetId, t.name);
+        if (t) onNodeSelect(targetId, t.name,t);
       }
     },
     [byId, selectedId, rootId, onNodeSelect]
   );
 
+  //keydown:按鈕按下去的瞬間(畫面並沒有被渲染)
+  //keypress:按鈕已經按壓下去
+  //keyup:整個按鈕事件結束(畫面UI已經更新了)
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key === 'ArrowUp') { e.preventDefault(); selectByArrow('up'); }
@@ -253,15 +269,11 @@ const renderNode = (rd: any) => {
           </div>
         )}
         <Tree
-          data={treeData}
+
+          data={visibleTree}
           orientation="vertical"
           zoomable
-          translate={translate}   // ← 用 state 控制
-          onNodeClick={(nodeData: any) => {
-            const id = nodeData.data.id as string;
-            const name = nodeData.data.name as string;
-            onNodeSelect(id, name);
-          }}
+          translate={translate}   
           renderCustomNodeElement={renderNode}
           enableLegacyTransitions={true}
           transitionDuration={500}    // ← 加上這個 (毫秒)

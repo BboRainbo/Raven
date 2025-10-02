@@ -28,6 +28,7 @@ export interface TreeClientHandle {
   collapseSubtree: (id: string) => void;
   expandSubtree: (id: string) => void;
   toggleSubtree: (id: string) => void;
+   updateNode: (nodeId: string, updates: Partial<TreeNode>) => void;
 }
 
 
@@ -39,20 +40,12 @@ interface TreeClientProps {
 
 const TreeClient = forwardRef<TreeClientHandle, TreeClientProps>(
   ({ value, onChange }, ref) => {    
-        const collapseNode = (node: TreeNode) => {
-      if (node.children) {
-        node._children = node.children;
-        node._children.forEach(collapseNode);
-        delete node.children;
-      }
+    const collapseNode = (node: TreeNode) => {
+      node._collapsed = true
     };
 
     const expandNode = (node: TreeNode) => {
-      if (node._children) {
-        node.children = node._children;
-        node.children.forEach(expandNode);
-        delete node._children;
-      }
+      node._collapsed = false
     };
     // 只保留「不影響外部資料真相」的內部狀態，例如剪貼簿
     const [clipboardNode, setClipboardNode] = useState<TreeNode | null>(null);
@@ -172,31 +165,32 @@ const insertSubtree = (parentId: string, subtree: TreeNode) => {
       collapseSubtree: (id: string) => {
       const clone = structuredClone(value);     // ✅ 從父層傳下來的 value
       const target = findNodeById(clone, id);        
-        if (target) {
-          target.collapsed = true;
-          collapseNode(target);
-          emit(clone);                            // ✅ 交回父層，更新狀態
-        }
+      if (target) {
+      //     target.collapsed = true;
+      //     collapseNode(target);
+      //     emit(clone);                            // ✅ 交回父層，更新狀態
+      //   }
+      target._collapsed = true;}
 
       },
       expandSubtree: (id: string) => {
         const clone = structuredClone(value);
         const target = findNodeById(clone, id);
         if (target) {
-          target.collapsed = false;
-          expandNode(target);
-          emit(clone);
-        }
+          // target.collapsed = false;
+          // expandNode(target);
+          // emit(clone);
+        target._collapsed = false;}
       },
 
       toggleSubtree: (id: string) => {
         const clone = structuredClone(value)
         const target = findNodeById(clone, id)
         if (target) {
-          if (target.children) {
+          if (!target._collapsed) {
             // 如果目前是展開的 → 收合
             collapseNode(target)
-          } else if (target._children) {
+          } else if (target._collapsed) {
             // 如果目前是收合的 → 展開
             expandNode(target)
           }

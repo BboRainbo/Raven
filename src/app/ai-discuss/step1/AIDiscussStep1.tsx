@@ -2,6 +2,9 @@
 
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { useSessionStorage } from "@/utils/useSessionStorage"
+import type { TreeNode } from "@/type/Tree"
+
 
 export default function AIDiscussStep1() {
   const router = useRouter()
@@ -23,7 +26,10 @@ export default function AIDiscussStep1() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!brief.trim()) return
-    router.push(`/ai-discuss/step2?brief=${encodeURIComponent(brief)}`)
+    router.push(
+  `/ai-discuss/step2?brief=${encodeURIComponent(brief)}&nodeId=${nodeId}&nodeName=${encodeURIComponent(nodeName)}`
+)
+
   }
 
   return (

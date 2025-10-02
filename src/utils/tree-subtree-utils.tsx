@@ -51,12 +51,23 @@ export function collectLeaves(node: TreeNode): TreeNode[] {
  * 從某節點的「直接子節點」做雷達圖資料
  * 每個 child 產生一個軸，值為 child.progress（0~100）
  */
-export function radarItemsFromChildren(node: TreeNode, progressKey: keyof TreeNode | "progress" = "progress") {
-  return (node.children ?? []).map((c) => ({
+export function radarItemsFromChildren(
+  node: TreeNode,
+  progressKey: keyof TreeNode | "progress" = "progress"
+) {
+  const children = node.children ?? [];
+  if (children.length === 0) {
+    // 保證沒有子節點時，回傳空陣列，不會 fallback
+    return [];
+  }
+  return children.map((c) => ({
     subject: c.name,
     progress: clamp(Number((c as any)[progressKey]) || 0, 0, 100),
   }));
 }
+
+
+
 
 /**
  * 以「子樹聚合」產生雷達圖資料：
@@ -69,6 +80,16 @@ export function radarItemsFromChildrenLeafAvg(
 ) {
   return (node.children ?? []).map((child) => {
     const leaves = collectLeaves(child);
+
+    // 👉 若 child 自己有 progress，就直接採用，不再被孫節點影響
+    if ((child as any)[progressKey] !== undefined) {
+      return {
+        subject: child.name,
+        progress: clamp(Number((child as any)[progressKey]) || 0, 0, 100),
+      };
+    }
+
+    // 否則 fallback 到葉子平均
     const vals = leaves.length ? leaves : [child];
     const sum = vals.reduce((acc, n) => acc + (Number((n as any)[progressKey]) || 0), 0);
     const avg = sum / vals.length;

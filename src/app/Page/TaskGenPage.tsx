@@ -8,11 +8,11 @@ import RenderTreePanel from '../../components/RenderTreePanel'
 import AIPanel from '../../components/AIPanel'
 import React, { useState, useRef, useMemo, useEffect } from 'react'
 import type { TreeNode } from '@/type/Tree'
-
 import TreeClient, { type TreeClientHandle } from '../../components/TreeClient'
 import { findNodeById } from '@/utils/TreeUtils/findNodeById'
 
-
+//session Storage
+import { useSessionStorage } from "@/utils/useSessionStorage"
 //Import History Snapshot Utils
 import { createHistory, pushHistory, undo, redo, current } from '@/utils/TreeUtils/History/historyManager'
 //樹的輸入/輸出
@@ -29,7 +29,7 @@ import { expandAllChildren } from '@/utils/TreeUtils/expandtree'
 export default function TaskGenPage() {  
 
 const treeContainerRef = useRef<HTMLDivElement>(null);
-
+const toggleLockRef = useRef(false)
 const initialTreeData: TreeNode = {
   id: 'root',
   name: '轉職計畫',
@@ -60,7 +60,7 @@ const initialTreeData: TreeNode = {
 };
 const router = useRouter()
 //Tree單一資料來源(在這裡主控而非TC)、UI 選取狀態（與資料解耦）
-const [tree, setTree] = useState<TreeNode>(initialTreeData)  
+const [tree, setTree] = useSessionStorage<TreeNode>("treeData", initialTreeData) 
 const [selectedNodeId, setSelectedNodeId] = useState<string>('')   // 未選取時為空字串/你也可用 null
 const [selectedNodeName, setSelectedNodeName] = useState<string>('')
 
@@ -87,6 +87,7 @@ function handleTreeChange(newTree: TreeNode) {
   setTree(newTree)
   setTreeHistory(prev => pushHistory(prev, newTree))
 }
+
 function handleUndo() {
   setTreeHistory(prev => {
     const updated = undo(prev)
@@ -116,24 +117,41 @@ function handleRedo() {
   const [radarMode, setRadarMode] = useState<'children' | 'childrenLeafAvg' | 'depth'>('childrenLeafAvg')
   const [radarDepth, setRadarDepth] = useState<number>(2)
 
-  const sp = useSearchParams()
-  useEffect(() => {
-    const insertSubtreeStr = sp.get('insertSubtree')
-    const parentId = sp.get('parentId')
+  //監聽URL傳回的子節點陣列並加入
+const sp = useSearchParams()
+useEffect(() => {
+  const childrenStr = sp.get('children')
+  const parentId = sp.get('parentId')
+  const focusId = sp.get('parentId')
 
-    if (insertSubtreeStr && parentId && treeClientRef.current) {
-      try {
-        const subtree = JSON.parse(insertSubtreeStr)
-        treeClientRef.current.insertSubtree(parentId, subtree)
-        router.replace('/')
-      } catch (e) {
-        console.error('JSON 解析錯誤', e)
+  if (childrenStr && parentId && treeClientRef.current) {
+    try {
+      const children = JSON.parse(childrenStr) as TreeNode[]
+
+      children.forEach(child => {
+        treeClientRef.current!.appendChildren(parentId, child)
+      })
+
+      // ✅ 如果有指定要 focus 的節點，就馬上選取
+      if (focusId) {
+        setSelectedNodeId(focusId)
+        const target = children.find(c => c.id === focusId)
+        if (target) setSelectedNodeName(target.name)
       }
+
+      // 回首頁時清掉 query 參數
+      router.replace('/')
+    } catch (e) {
+      console.error('JSON 解析錯誤', e)
     }
-  }, [sp])
+  }
+}, [sp])
+
+
 
   //快捷鍵設定
   //Undo/Redo快捷鍵
+let debounceTimer: NodeJS.Timeout | null = null;
 const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
   if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
 
@@ -161,16 +179,14 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
       }
       break;
 
-
-
-    case 'c': // 收合/展開切換
+    case 'c':
       if (selectedNodeId) {
-        treeClientRef.current?.toggleSubtree(selectedNodeId)
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          treeClientRef.current?.toggleSubtree(selectedNodeId);
+        }, 300); // 0.5s 內若繼續按，就重置計時器
       }
       break;
-
-
-
 
     case 'e': // 編輯
       if (selectedNodeId) {
@@ -342,11 +358,12 @@ const regionNode = useMemo(() => {
           >
             匯入樹
           </button>
-                    <button
+
+          <button
             onClick={() => {
               if (!selectedNodeId) return
               router.push(
-                `/ai-discuss?nodeId=${selectedNodeId}&nodeName=${encodeURIComponent(selectedNodeName)}`
+                `/ai-discuss/step1?nodeId=${selectedNodeId}&nodeName=${encodeURIComponent(selectedNodeName)}`
               )
             }}
             className="bg-lime-500 text-black px-3 py-1 rounded disabled:opacity-50"
@@ -354,6 +371,7 @@ const regionNode = useMemo(() => {
           >
             與AI討論子任務
           </button>
+
           <button
             disabled={!selectedNodeId}
             onClick={() => selectedNodeId && treeClientRef.current?.collapseSubtree(selectedNodeId)}
@@ -416,15 +434,25 @@ const regionNode = useMemo(() => {
       {/* 右半：雷達 + 甘特圖 */}
       <div className="w-1/3 h-full flex flex-col bg-white">
         {/* 上半：雷達圖 */}
-        <div className="h-1/2 border-b border-gray-300 p-2">
-          <SubtreeRadarChart
-            node={regionNode}
-            title="子樹雷達圖"
-            mode="childrenLeafAvg"   // 依需求可切換 "children" | "depth"
-            depth={2}
-            height="100%"            
-          />
-        </div>
+      {/* 上半：描述編輯區 */}
+      <div className="h-1/2 border-b border-gray-300 p-2 overflow-auto">
+        {regionNode ? (
+          <div>
+            <h2 className="text-lg font-bold mb-2">{regionNode.name} 的描述</h2>
+            <textarea
+              className="w-full h-40 border p-2 rounded text-black"
+              value={regionNode.description || ""}
+              onChange={(e) => {
+                if (selectedNodeId) {
+                  treeClientRef.current?.updateNode(selectedNodeId, { description: e.target.value });
+                }
+              }}
+            />
+          </div>
+        ) : (
+          <p className="text-gray-400">請選擇一個節點</p>
+        )}
+      </div>
 
         {/* 下半：甘特圖 */}
         <div className="h-1/2 p-2">

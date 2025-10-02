@@ -5,7 +5,7 @@ import type { TreeNode } from '@/type/Tree'
 interface RenderNodeProps {
   nodeDatum: TreeNode
   selectedId: string | null
-  onSelect: (id: string, name: string) => void
+  onSelect: (id: string, name: string,node:TreeNode) => void
 }
 
 const RenderNode: React.FC<RenderNodeProps> = ({
@@ -19,7 +19,7 @@ const RenderNode: React.FC<RenderNodeProps> = ({
 
   //Props 的最底層點擊事件被監聽
   const handleClick = (e: React.MouseEvent) => {
-    onSelect(nodeDatum.id, nodeDatum.name)
+    onSelect(nodeDatum.id, nodeDatum.name,nodeDatum)
   }
 
   return (
@@ -60,10 +60,10 @@ const RenderNode: React.FC<RenderNodeProps> = ({
       />
 
       {/* 收合/展開按鈕 */}
-      {(nodeDatum.children || nodeDatum._children) && (
+      {(nodeDatum.children && nodeDatum.children.length > 0) || nodeDatum._collapsed ? (
         <g transform="translate(-20,0)" style={{ cursor: 'pointer' }}>
           <circle r={7} fill="#f0f0f0" stroke="#555" />
-          {nodeDatum._children ? (
+          {nodeDatum._collapsed ? (
             // ▶ 收合
             <polygon points="-2,-3 3,0 -2,3" fill="black" />
           ) : (
@@ -71,7 +71,7 @@ const RenderNode: React.FC<RenderNodeProps> = ({
             <polygon points="-3,-2 3,-2 0,3" fill="black" />
           )}
         </g>
-      )}
+      ) : null}
 
       {/* 節點名稱與進度 */}
       <text

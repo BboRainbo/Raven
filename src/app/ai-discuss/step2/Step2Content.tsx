@@ -7,7 +7,7 @@ export default function AIDiscussStep2() {
   const router = useRouter()
   const sp = useSearchParams()
   const brief = sp.get('brief') ?? ''
-  const parentId = sp.get('nodeId') ?? ''
+  const parentId = sp.get('nodeId') ?? ''   // 這個就是目標父節點
 
   const [aiDescription, setAiDescription] = useState('')
   const [subtasks, setSubtasks] = useState<string[]>([])
@@ -30,33 +30,41 @@ export default function AIDiscussStep2() {
 
       const options = text
         .split('\n')
-        .filter((line: string) => line.trim().startsWith('-'))
-        .map((line: string) => line.replace(/^-\s*/, '').trim())
+        .filter((line: string) => {
+          const l = line.trim()
+          return (l.startsWith('*') || l.startsWith('-')) && !l.includes('目標：') && !l.includes('內容：')
+        })
+        .map((line: string) =>
+          line
+            .replace(/^[-*]\s*/, '')   // 去掉前綴符號
+            .replace(/\*\*/g, '')      // 去掉 Markdown 粗體
+            .trim()
+        )
 
       setSubtasks(options)
     }
     fetchAI()
   }, [brief])
 
-  const finalizeAndBack = () => {
-    if (selectedTasks.length === 0) {
-      alert('請至少選擇一個子任務')
-      return
-    }
-    const subtree = {
-      id: Date.now().toString(),
-      name: aiDescription || brief,
-      progress: 0,
-      textOffset: { x: 15, y: 5 },
-      children: selectedTasks.map(task => ({
-        id: Math.random().toString(36).slice(2),
-        name: task,
-        progress: 0,
-        textOffset: { x: 15, y: 5 }
-      }))
-    }
-    router.push(`/?insertSubtree=${encodeURIComponent(JSON.stringify(subtree))}&parentId=${parentId}`)
+ const finalizeAndBack = () => {
+  if (selectedTasks.length === 0) {
+    alert('請至少選擇一個子任務')
+    return
   }
+
+  const children = selectedTasks.map(task => ({
+    id: Math.random().toString(36).slice(2),
+    name: task,
+    progress: 0,
+    textOffset: { x: 15, y: 5 }
+  }))
+
+  console.log("✅ [Step2] 準備送出的 children:", children)
+  console.log("✅ [Step2] parentId:", parentId)
+
+  router.push(`/?children=${encodeURIComponent(JSON.stringify(children))}&parentId=${parentId}`)
+}
+
 
   return (
     <div className="flex min-h-screen bg-gray-900 text-white">
