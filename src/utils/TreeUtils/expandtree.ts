@@ -6,7 +6,6 @@ export function expandAllChildren(node: TreeNode): TreeNode {
     ...node,
     children: [
       ...(node.children?.map(expandAllChildren) ?? []),
-      ...(node._children?.map(expandAllChildren) ?? []),
     ],
   }
 }
